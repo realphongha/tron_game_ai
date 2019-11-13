@@ -1,8 +1,9 @@
 from math import inf
+from time import sleep, time
 
 reverse = {'r': 'g', 'g': 'r'}
 # constant:
-SIZE = 15
+SIZE = 11
 SQ_SIZE = SIZE * SIZE
 FILL_DEPTH = 5
 MINIMAX_DEPTH = 4
@@ -122,12 +123,12 @@ class Matrix:
                 count += 1
         return count
 
-    def flood_fill_count(self):
+    def flood_fill_count(self, cur_pos):
         """
         :return: số node liên thông với node của bot hiện tại (không tính node hiện tại)
         """
-        added = {self.pos}
-        wasnt_popped = {self.pos}
+        added = {cur_pos}
+        wasnt_popped = {cur_pos}
         count = 0
         while wasnt_popped:
             pos = wasnt_popped.pop()

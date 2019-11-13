@@ -1,5 +1,5 @@
 """
-Game Tron đơn giản 1 người chơi (Player vs AI) trên command line.
+Game Tron đơn giản 0 người chơi (AI vs AI) trên command line.
 Mục đích chính để debug.
 Nhập vào trạng thái ban đầu để tạo ván chơi mới.
 
@@ -28,7 +28,7 @@ reverse = {'r': 'g', 'g': 'r'}
 # constant:
 SIZE = 11
 SQ_SIZE = SIZE * SIZE
-FILL_DEPTH = 5
+FILL_DEPTH = 4
 MINIMAX_DEPTH = 6
 
 # handles input:
@@ -318,6 +318,24 @@ def fill(state):
         next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 0))
     return next_state
 
+def fill_greedy(state):
+    """
+    Fill dùng greedy heuristic
+    """
+    remaining = 0
+    next_states = [] # lưu đường đi lấy được vào đây
+    if state.is_articulation_point():  # chọn thành phần liên thông size lớn nhất nếu hiện tại đang ở articulation point
+        next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
+        remaining = 0
+    elif remaining == 0:
+        next_states = greedy_filling_evaluate(state, 0)[1][:-1]
+        remaining = len(next_states) - 1
+        next_state = next_states.pop()
+    else:
+        remaining -= 1
+        next_state = next_states.pop()
+    return next_state
+
 
 def filling_evaluate(state):
     """
@@ -325,7 +343,7 @@ def filling_evaluate(state):
     """
     moves_count = state.avail_moves_count(state.pos)
     if moves_count == 0:
-        return -10000  # nếu đi vào ngõ cụt, trả về giá trị tệ nhất
+        return -10000 # nếu đi vào ngõ cụt, trả về giá trị tệ nhất
     # công thức: số ô có thể tới - 2 * bậc của ô - 4 * số điểm cắt trong các ô có thể tới
     point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
     if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
@@ -336,6 +354,8 @@ def filling_evaluate(state):
 def filling_evaluate_with_depth(state, depth):
     """
     Hàm đơn giản để áp dụng hàm filling_evaluate() bên trên với chiều sâu FILL_DEPTH.
+    Công thức: giá trị trạng thái hiện tại cộng với giá trị các trạng thái con nhân với hệ số giảm dần
+    Note: hàm có vấn đề ở giá trị -10000 và -500
     """
     moves_count = state.avail_moves_count(state.pos)
     if moves_count == 0:
@@ -349,6 +369,25 @@ def filling_evaluate_with_depth(state, depth):
     for next_state in state.avail_moves_1_player():
         max_val = max(max_val, filling_evaluate_with_depth(next_state, depth + 1))
     return filling_evaluate(state) + max_val / (depth + 1)
+
+def greedy_filling_evaluate(state, depth):
+    """
+    Lấy trạng thái con ở cuối cây với giá trị lớn nhất và đường đi từ trạng thái hiện tại tới đó.
+    Chạy không ổn lắm
+    """
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return (-10000, [state])
+    if depth == FILL_DEPTH:
+        point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
+        if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
+            point -= 500
+        return (point, [state])
+    max_val = (-inf, None)
+    for next_state in state.avail_moves_1_player():
+        max_val = max(max_val, greedy_filling_evaluate(next_state, depth + 1), key = lambda x: x[0])
+    max_val[1].append(state) 
+    return max_val
 
 
 def return_move(new, old):
@@ -365,28 +404,28 @@ def return_move(new, old):
 
 # chạy thôi:
 cur = Matrix(matrix, turn, cur_pos, opp_pos)
-cur.display(0)
+# cur.display(0)
 while True:
     if cur.avail_moves_count(cur.pos) == 0:
         print("\nEnd game!")
         break
-    if cur.turn == 'r':
-        player_move = tuple(map(int, input("\nEnter your move (For example: '0 2' means position (0, 2)): ").rstrip().split()))
-        cur.matrix[player_move[0] * SIZE + player_move[1]] = 'r'
-        cur.pos = player_move
-        cur.turn = reverse[cur.turn]
-        cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
-        cur.display(0)
-    if cur.turn == 'g':
+    else:
         print("\nAI move:")
         start = time()
         ###
         if cur.is_separated():
-            cur = fill(cur)
+            print("FILL MODE!")
+            cur = fill_greedy(cur)
             cur.turn = reverse[cur.turn]
             cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
         else:
+            print("MINIMAX MODE!")
             cur = minimax(cur, 0)
         ###
         print("Time:", time()-start, "(s)")
-        cur.display(0)
+        turn = reverse[turn]
+        cur.display(0.3)
+
+# for i in greedy_filling_evaluate(cur, 0)[1]:
+#     i.display(0)
+#     print()
