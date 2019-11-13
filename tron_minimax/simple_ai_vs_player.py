@@ -1,13 +1,37 @@
+"""
+Game Tron đơn giản 1 người chơi (Player vs AI) trên command line.
+Mục đích chính để debug.
+Nhập vào trạng thái ban đầu để tạo ván chơi mới.
+
+Input mẫu:
+g
+10 10 0 0
+g----------
+-----------
+------#----
+---#-------
+-----------
+-----------
+-----------
+-------#---
+----#------
+-----------
+----------r
+
+(g sẽ đi trước, vị trí của g là 0, 0 và vị trí của r là 10, 10)
+"""
+
 from math import inf
+from time import time
 
 reverse = {'r': 'g', 'g': 'r'}
 # constant:
-SIZE = 15
+SIZE = 11
 SQ_SIZE = SIZE * SIZE
 FILL_DEPTH = 5
-MINIMAX_DEPTH = 4
+MINIMAX_DEPTH = 6
 
-# handles input (from hackerrank):
+# handles input:
 turn = input().rstrip()
 line2 = tuple(map(int, input().rstrip().split()))
 cur_pos = (line2[0], line2[1])
@@ -122,12 +146,12 @@ class Matrix:
                 count += 1
         return count
 
-    def flood_fill_count(self):
+    def flood_fill_count(self, cur_pos):
         """
         :return: số node liên thông với node của bot hiện tại (không tính node hiện tại)
         """
-        added = {self.pos}
-        wasnt_popped = {self.pos}
+        added = {cur_pos}
+        wasnt_popped = {cur_pos}
         count = 0
         while wasnt_popped:
             pos = wasnt_popped.pop()
@@ -212,7 +236,7 @@ class Matrix:
 
     def voronoi_heuristic_evaluate(self):
         """
-        Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax
+        Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax.
         Công thức: tổng bậc của các ô gần vị trí người chơi - tổng bậc các ô gần vị trí đối thủ
         (tính theo khoảng cách manhattan) 
         """
@@ -231,16 +255,10 @@ class Matrix:
                     elif (i, j) not in my_pos_flood_fill and (i, j) not in opp_pos_flood_fill:
                         pass
                     else:
-                        moves_count = self.avail_moves_count((i, j))
-                        if self.manhattan_dist(self.pos, (i, j)) < self.manhattan_dist(self.opp_pos, (i, j)):
-                            point += moves
-                        elif self.manhattan_dist(self.pos, (i, j)) > self.manhattan_dist(self.opp_pos, (i, j)):
+                        if self.manhattan_dist(self.pos, (i, j)) > self.manhattan_dist(self.opp_pos, (i, j)):
                             point -= moves
                         else:
-                            pass
-                        # trường hợp khoảng cách bằng nhau:
-                        # nếu là game di chuyển đồng thời, cho point += 0
-                        # nếu là game theo lượt, point += 1 vì người chơi hiện tại sẽ tới trước
+                            point += moves # khoảng cách bằng nhau, bot của người chơi sẽ tới trước (do là game turn-based)
         if self.turn == turn:
             return point
         return -point
@@ -308,6 +326,7 @@ def filling_evaluate(state):
     moves_count = state.avail_moves_count(state.pos)
     if moves_count == 0:
         return -10000  # nếu đi vào ngõ cụt, trả về giá trị tệ nhất
+    # công thức: số ô có thể tới - 2 * bậc của ô - 4 * số điểm cắt trong các ô có thể tới
     point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
     if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
         point -= 500
@@ -345,16 +364,29 @@ def return_move(new, old):
 
 
 # chạy thôi:
-mat = Matrix(matrix, turn, cur_pos, opp_pos)
-
-if mat.is_separated():
-    new_pos = fill(mat).pos
-else:
-    # xét khoảng cách để kích hoạt minimax, nên dùng khi map nhiều vật cản 
-    # vì dùng minimax từ đầu dễ tự bóp dái (không hiểu tại sao)
-    if mat.activate_minimax(): 
-        new_pos = minimax(mat, 0).opp_pos
-    else:
-        new_pos = max(mat.avail_moves_1_player(), key=lambda x: x.voronoi_heuristic_evaluate()).pos
-
-print(return_move(new_pos, cur_pos))
+cur = Matrix(matrix, turn, cur_pos, opp_pos)
+cur.display(0)
+while True:
+    if cur.avail_moves_count(cur.pos) == 0:
+        print("\nEnd game!")
+        break
+    if cur.turn == 'r':
+        player_move = tuple(map(int, input("\nEnter your move (For example: '0 2' means position (0, 2)): ").rstrip().split()))
+        cur.matrix[player_move[0] * SIZE + player_move[1]] = 'r'
+        cur.pos = player_move
+        cur.turn = reverse[cur.turn]
+        cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+        cur.display(0)
+    if cur.turn == 'g':
+        print("\nAI move:")
+        start = time()
+        ###
+        if cur.is_separated():
+            cur = fill(cur)
+            cur.turn = reverse[cur.turn]
+            cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+        else:
+            cur = minimax(cur, 0)
+        ###
+        print("Time:", time()-start, "(s)")
+        cur.display(0)
