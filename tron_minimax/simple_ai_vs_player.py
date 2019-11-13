@@ -221,7 +221,8 @@ class Matrix:
         :return: True nếu bot đang đứng trên articulation point và ngược lại
         """
         try:
-            return self.flood_fill_count(self.pos) - 1 != tuple(self.avail_moves_1_player())[0].flood_fill_count(self.pos)
+            next_move = tuple(self.avail_moves_1_player())[0]
+            return self.flood_fill_count(self.pos) - 1 != next_move.flood_fill_count(next_move.pos)
         except:
             return False  # khi không có nút kề
 
@@ -276,7 +277,7 @@ def minimax(state, depth):
 
 
 def max_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH:
+    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
         if state.is_separated():
             point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
             return point if state.turn == turn else -point
@@ -291,7 +292,7 @@ def max_value(state, depth, alpha, beta):
 
 
 def min_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH:
+    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
         if state.is_separated():
             point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
             return point if state.turn == turn else -point

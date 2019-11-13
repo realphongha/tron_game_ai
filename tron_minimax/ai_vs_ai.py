@@ -221,7 +221,8 @@ class Matrix:
         :return: True nếu bot đang đứng trên articulation point và ngược lại
         """
         try:
-            return self.flood_fill_count(self.pos) - 1 != tuple(self.avail_moves_1_player())[0].flood_fill_count(self.pos)
+            next_move = tuple(self.avail_moves_1_player())[0]
+            return self.flood_fill_count(self.pos) - 1 != next_move.flood_fill_count(next_move.pos)
         except:
             return False  # khi không có nút kề
 
@@ -239,6 +240,7 @@ class Matrix:
         Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax.
         Công thức: tổng bậc của các ô gần vị trí người chơi - tổng bậc các ô gần vị trí đối thủ
         (tính theo khoảng cách manhattan) 
+        có thể tính khoảng cách = đường đi ngắn nhất? (dùng BFS)
         """
         global turn
         point = 0
@@ -276,12 +278,12 @@ def minimax(state, depth):
 
 
 def max_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH:
+    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
         if state.is_separated():
             point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
             return point if state.turn == turn else -point
         return state.voronoi_heuristic_evaluate()
-    max_val = -inf
+    max_val = -inf # nếu không có next_state, trả về -inf luôn
     for next_state in state.avail_moves():
         max_val = max(max_val, min_value(next_state, depth + 1, alpha, beta))
         if max_val >= beta:
@@ -291,7 +293,7 @@ def max_value(state, depth, alpha, beta):
 
 
 def min_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH:
+    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
         if state.is_separated():
             point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
             return point if state.turn == turn else -point
@@ -415,7 +417,7 @@ while True:
         ###
         if cur.is_separated():
             print("FILL MODE!")
-            cur = fill_greedy(cur)
+            cur = fill(cur)
             cur.turn = reverse[cur.turn]
             cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
         else:
