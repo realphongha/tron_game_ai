@@ -1,9 +1,11 @@
 """
-Game Tron đơn giản 1 người chơi (Player vs AI) trên command line.
+Game Tron đơn giản trên command line.
 Mục đích chính để debug.
+
 Nhập vào trạng thái ban đầu để tạo ván chơi mới.
 
 Input mẫu:
+11
 g
 10 10 0 0
 g----------
@@ -17,21 +19,29 @@ g----------
 ----#------
 -----------
 ----------r
+>>> kích thước bảng là 11, g sẽ đi trước, vị trí của g là (0, 0) và vị trí của r 
+là (10, 10)
 
-(g sẽ đi trước, vị trí của g là 0, 0 và vị trí của r là 10, 10)
+Chọn mode 1 để chơi với máy (AI vs Player), mode 2 để máy tự chơi (AI vs AI).
+
+Lưu ý khi chơi AI vs Player, g sẽ là bot, r là player, nếu muốn player đi trước 
+thì thay g bằng r ở dòng đầu).
 """
 
 from math import inf
 from time import sleep, time
+from collections import deque
 
 reverse = {'r': 'g', 'g': 'r'}
-# constant:
-SIZE = 11
-SQ_SIZE = SIZE * SIZE
-FILL_DEPTH = 5
-MINIMAX_DEPTH = 6
+# constants:
+SIZE = 0 # kích thước bảng
+SQ_SIZE = 0 # SIZE * SIZE
+FILL_DEPTH = 6 # độ sâu chế độ space fill
+MINIMAX_DEPTH = 5 # độ sâu minimax
 
 # handles input:
+SIZE = int(input())
+SQ_SIZE = SIZE * SIZE
 turn = input().rstrip()
 line2 = tuple(map(int, input().rstrip().split()))
 cur_pos = (line2[0], line2[1])
@@ -235,11 +245,59 @@ class Matrix:
     def manhattan_dist(self, pos1, pos2):
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
+    def min_dist_bfs(self, pos1, pos2):
+        """ 
+        Khoảng cách nhỏ nhất dùng BFS. Test thử trên hackerrank thấy mạnh hơn
+        dùng manhattan distance.
+        Cơ mà duyệt minimax với độ sâu <= 5 thôi nhé. Độ sâu 5 thỉnh thoảng
+        vẫn nghĩ hơn 1s.
+        """
+        visited = {pos1: 0} 
+        queue = deque([pos1])
+        while queue:
+            pos = queue.popleft()
+            if pos == pos2:
+                return visited[pos]
+            for next_pos in self.avail_moves_coor(pos): 
+                if next_pos not in visited: 
+                    visited[next_pos] = visited[pos] + 1 
+                    queue.append(next_pos) 
+        return inf # nếu pos1 và pos2 không cùng thành phần liên thông 
+                   # thì trả về inf, mà trong code không trả về bao giờ đâu.
+
+    def min_dist_bfs_obstacle(self, pos1, pos2):
+        """ 
+        Cũng tính min distance dựa vào BFS nhưng xét cả cho vị trí pos2 là 
+        vật cản.
+        """
+        # chuyển vị trí pos2 thành ô trống trước, nếu không sẽ éo tìm được.
+        temp = self.matrix[pos2[0]*SIZE+pos2[1]]
+        self.matrix[pos2[0]*SIZE+pos2[1]] = '-'  
+
+        visited = {pos1: 0} 
+        queue = deque([pos1])
+        while queue:
+            pos = queue.popleft()
+            if pos == pos2:
+                self.matrix[pos2[0]*SIZE+pos2[1]] = temp
+                return visited[pos]
+            for next_pos in self.avail_moves_coor(pos): 
+                if next_pos not in visited: 
+                    visited[next_pos] = visited[pos] + 1 
+                    queue.append(next_pos) 
+        self.matrix[pos2[0]*SIZE+pos2[1]] = temp
+        return inf # nếu pos1 và pos2 không cùng thành phần liên thông 
+                   # thì trả về inf, mà trong code không trả về bao giờ đâu.
+
     def voronoi_heuristic_evaluate(self):
         """
         Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax.
         Công thức: tổng bậc của các ô gần vị trí người chơi - tổng bậc các ô gần vị trí đối thủ
         (tính theo khoảng cách manhattan) 
+
+        Ý tưởng: 
+        .trừ điểm cho mỗi articular point trong lãnh thổ của mình 
+        .nghiên cứu thêm về chambers tree (https://www.a1k0n.net/2010/03/04/google-ai-postmortem.html)
         """
         global turn
         point = 0
@@ -268,18 +326,34 @@ class Matrix:
         """
         Chỉ sử dụng minimax khi đủ gần.
         """
-        return self.manhattan_dist(self.pos, self.opp_pos) <= MINIMAX_DEPTH + 1
+        return self.min_dist_bfs_obstacle(self.pos, self.opp_pos) <= MINIMAX_DEPTH + 1
 
 
 # Minimax algorithm: {{
 def minimax(state, depth):
+    """
+    Ý tưởng: 
+    .có thể dùng iterative deepening search với độ sâu tăng dần, tính thời gian
+        sau mỗi vòng lặp để giới hạn mỗi nước đi < 1s
+    """
     return max(state.avail_moves(), key=lambda x: min_value(x, depth + 1, -inf, inf))
 
 
 def max_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
+    # if state.avail_moves_count(state.pos) == 0:
+    #     return -inf if state.turn == turn else inf
+    # >> khi vào deadend, trả về -inf nếu là turn người chơi và ngược lại
+    # viết ra đây cho rõ chứ trong trường hợp đấy hàm cũng tự trả về 
+    # max_val = -inf như dưới rồi.
+    if depth == MINIMAX_DEPTH:
         if state.is_separated():
-            point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
+            # nếu 2 bot đã phân tách, áp dụng hàm đánh giá cho space fill
+            # và nhân lên 10000 lần (vì còn nhiều space hơn >> thắng phần minimax)
+            my_point =  filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            opp_point = filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            point = 10000 * (my_point - opp_point)
             return point if state.turn == turn else -point
         return state.voronoi_heuristic_evaluate()
     max_val = -inf
@@ -292,9 +366,13 @@ def max_value(state, depth, alpha, beta):
 
 
 def min_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
+    if depth == MINIMAX_DEPTH:
         if state.is_separated():
-            point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
+            my_point =  filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            opp_point = filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            point = 10000 * (my_point - opp_point)
             return point if state.turn == turn else -point
         return state.voronoi_heuristic_evaluate()
     min_val = inf
@@ -312,13 +390,34 @@ def fill(state):
     Chế độ fill khoảng trống khi 2 player đã tách khỏi nhau
     :param state: trạng thái hiện tại
     :return: trạng thái di chuyển có lợi nhất tiếp theo
+    Ý tưởng: 
+    .dùng ids giống minimax đã nêu.
     """
     if state.is_articulation_point():  # chọn thành phần liên thông size lớn nhất nếu hiện tại đang ở articulation point
         next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
     else:  # nếu không ở articulation point, dùng hàm đánh giá trạng thái để xác định nước tiếp theo:
-        next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 0))
+        next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 1))
     return next_state
 
+def fill_greedy(state):
+    """
+    Fill dùng greedy heuristic. 
+    Kỳ vọng sẽ thay cho hàm fill() bên trên nhưng tới giờ vẫn chạy như cc.
+    Đọc hàm greedy_filling_evaluate() ở dưới để biết thêm.
+    """
+    remaining = 0
+    next_states = [] # lưu đường đi lấy được vào đây
+    if state.is_articulation_point():  # chọn thành phần liên thông size lớn nhất nếu hiện tại đang ở articulation point
+        next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
+        remaining = 0
+    elif remaining == 0:
+        next_states = greedy_filling_evaluate(state, 1)[1][:-1]
+        remaining = len(next_states) - 1
+        next_state = next_states.pop()
+    else:
+        remaining -= 1
+        next_state = next_states.pop()
+    return next_state
 
 def filling_evaluate(state):
     """
@@ -331,6 +430,16 @@ def filling_evaluate(state):
     point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
     if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
         point -= 500
+    return point
+
+def filling_evaluate_minimax(state):
+    """
+    Đánh giá heuristic cho trạng thái đã separated, dùng trong cuối phần minimax.
+    """
+    if state.is_articulation_point():  # nếu bot ở articular point, tính dựa trên trạng thái con lớn nhất
+        return filling_evaluate_minimax(max(state.avail_moves_1_player(), key = lambda x: filling_evaluate_minimax(x))) + 1
+    point = state.flood_fill_count(state.pos) - 3 * len(state.find_articulation_points())
+    # coi như trung bình 1 articular point sẽ kéo theo mất 3 điểm khác >>> trừ đi 3 lần
     return point
 
 
@@ -351,6 +460,23 @@ def filling_evaluate_with_depth(state, depth):
         max_val = max(max_val, filling_evaluate_with_depth(next_state, depth + 1))
     return filling_evaluate(state) + max_val / (depth + 1)
 
+def greedy_filling_evaluate(state, depth):
+    """
+    Trả về trạng thái con ở cuối cây với giá trị lớn nhất và đường đi từ trạng thái hiện tại tới đó.
+    """
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return (-10000, [state])
+    if depth == FILL_DEPTH:
+        point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
+        if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
+            point -= 500
+        return (point, [state])
+    max_val = (-inf, None)
+    for next_state in state.avail_moves_1_player():
+        max_val = max(max_val, greedy_filling_evaluate(next_state, depth + 1), key = lambda x: x[0])
+    max_val[1].append(state) 
+    return max_val
 
 def return_move(new, old):
     if new[0] == old[0] + 1 and new[1] == old[1]:
@@ -367,27 +493,77 @@ def return_move(new, old):
 # chạy thôi:
 cur = Matrix(matrix, turn, cur_pos, opp_pos)
 cur.display(0)
-while True:
-    if cur.avail_moves_count(cur.pos) == 0:
-        print("\nEnd game!")
-        break
-    if cur.turn == 'r':
-        player_move = tuple(map(int, input("\nEnter your move (For example: '0 2' means position (0, 2)): ").rstrip().split()))
-        cur.matrix[player_move[0] * SIZE + player_move[1]] = 'r'
-        cur.pos = player_move
-        cur.turn = reverse[cur.turn]
-        cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
-        cur.display(0)
-    if cur.turn == 'g':
-        print("\nAI move:")
-        start = time()
-        ###
-        if cur.is_separated():
-            cur = fill(cur)
+
+mode = input("\nChoose play mode (1 - AI vs Player, 2 - AI vs AI): ")
+if mode == '1': # AI vs Player
+    turn = 'g' # máy luôn là 'g'
+    while True:
+        if cur.avail_moves_count(cur.opp_pos) == 0:
+            print("\nEnd game!")
+            break
+        if cur.turn == 'r':
+            player_move = tuple(map(int, input("\nYou are 'r'.\nEnter your move\n(For example: '0 2' means position (0, 2)): ").rstrip().split()))
+            cur.matrix[player_move[0] * SIZE + player_move[1]] = 'r'
+            cur.pos = player_move
             cur.turn = reverse[cur.turn]
             cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+            cur.display(0)
+        if cur.turn == 'g':
+            print("\nAI move:")
+            start = time()
+
+            ### AI thinking...
+            if cur.is_separated():
+                print("FILL MODE!")
+                cur = fill(cur)
+                cur.turn = reverse[cur.turn]
+                cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+            else:
+                # dùng minimax luôn từ đầu:
+                # print("MINIMAX MODE!")
+                # cur = minimax(cur, 1)
+                if cur.activate_minimax():
+                    print("MINIMAX MODE!") 
+                    cur = minimax(cur, 1)
+                else:
+                    print("PRE MINIMAX MODE!")
+                    cur = max(cur.avail_moves_1_player(), key=lambda x: x.voronoi_heuristic_evaluate())
+                    cur.turn = reverse[cur.turn]
+                    cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+            ###
+
+            print("Time:", time()-start, "(s)")
+            cur.display(0)
+elif mode == '2': # AI vs AI
+    while True:
+        if cur.avail_moves_count(cur.pos) == 0:
+            print("\nEnd game!")
+            break
         else:
-            cur = minimax(cur, 0)
-        ###
-        print("Time:", time()-start, "(s)")
-        cur.display(0)
+            print("\nAI move:")
+            start = time()
+
+            ### AI thinking...
+            if cur.is_separated():
+                print("FILL MODE!")
+                cur = fill(cur)
+                cur.turn = reverse[cur.turn]
+                cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+            else:
+                # dùng minimax luôn từ đầu:
+                # print("MINIMAX MODE!")
+                # cur = minimax(cur, 1)
+                if cur.activate_minimax(): 
+                    print("MINIMAX MODE!") 
+                    cur = minimax(cur, 1)
+                else:
+                    print("PRE MINIMAX MODE!")
+                    print(cur.min_dist_bfs(cur.pos, cur.opp_pos))
+                    cur = max(cur.avail_moves_1_player(), key=lambda x: x.voronoi_heuristic_evaluate())
+                    cur.turn = reverse[cur.turn]
+                    cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
+            ###
+
+            print("Time:", time()-start, "(s)")
+            turn = reverse[turn]
+            cur.display(0.3)

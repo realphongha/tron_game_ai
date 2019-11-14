@@ -1,12 +1,13 @@
 from math import inf
 from time import sleep, time
+from collections import deque
 
 reverse = {'r': 'g', 'g': 'r'}
 # constant:
-SIZE = 11
+SIZE = 15
 SQ_SIZE = SIZE * SIZE
-FILL_DEPTH = 5
-MINIMAX_DEPTH = 10
+FILL_DEPTH = 6
+MINIMAX_DEPTH = 6
 
 # handles input (from hackerrank):
 turn = input().rstrip()
@@ -212,6 +213,46 @@ class Matrix:
     def manhattan_dist(self, pos1, pos2):
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
+    def min_dist_bfs(self, pos1, pos2):
+        """ 
+        Khoảng cách nhỏ nhất dùng BFS.
+        """
+        visited = {pos1: 0} 
+        queue = deque([pos1])
+        while queue:
+            pos = queue.popleft()
+            if pos == pos2:
+                return visited[pos]
+            for next_pos in self.avail_moves_coor(pos): 
+                if next_pos not in visited: 
+                    visited[next_pos] = visited[pos] + 1 
+                    queue.append(next_pos) 
+        return inf # nếu pos1 và pos2 không cùng thành phần liên thông 
+                   # thì trả về inf, mà trong code không trả về bao giờ đâu.
+
+    def min_dist_bfs_obstacle(self, pos1, pos2):
+        """ 
+        Cũng tính min distance dựa vào BFS nhưng xét cả cho vị trí pos2 là 
+        vật cản.
+        """
+        # chuyển vị trí pos2 thành ô trống trước, nếu không sẽ éo tìm được.
+        temp = self.matrix[pos2[0]*SIZE+pos2[1]]
+        self.matrix[pos2[0]*SIZE+pos2[1]] = '-'  
+
+        visited = {pos1: 0} 
+        queue = deque([pos1])
+        while queue:
+            pos = queue.popleft()
+            if pos == pos2:
+                self.matrix[pos2[0]*SIZE+pos2[1]] = temp
+                return visited[pos]
+            for next_pos in self.avail_moves_coor(pos): 
+                if next_pos not in visited: 
+                    visited[next_pos] = visited[pos] + 1 
+                    queue.append(next_pos) 
+        self.matrix[pos2[0]*SIZE+pos2[1]] = temp
+        return inf
+
     def voronoi_heuristic_evaluate(self):
         """
         Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax
@@ -234,9 +275,9 @@ class Matrix:
                         pass
                     else:
                         moves_count = self.avail_moves_count((i, j))
-                        if self.manhattan_dist(self.pos, (i, j)) < self.manhattan_dist(self.opp_pos, (i, j)):
+                        if self.min_dist_bfs(self.pos, (i, j)) < self.min_dist_bfs(self.opp_pos, (i, j)):
                             point += moves
-                        elif self.manhattan_dist(self.pos, (i, j)) > self.manhattan_dist(self.opp_pos, (i, j)):
+                        elif self.min_dist_bfs(self.pos, (i, j)) > self.min_dist_bfs(self.opp_pos, (i, j)):
                             point -= moves
                         else:
                             pass
@@ -251,7 +292,7 @@ class Matrix:
         """
         Chỉ sử dụng minimax khi đủ gần.
         """
-        return self.manhattan_dist(self.pos, self.opp_pos) <= MINIMAX_DEPTH + 1
+        return self.min_dist_bfs_obstacle(self.pos, self.opp_pos) <= MINIMAX_DEPTH + 1
 
 
 # Minimax algorithm: {{
@@ -260,9 +301,13 @@ def minimax(state, depth):
 
 
 def max_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
+    if depth == MINIMAX_DEPTH:
         if state.is_separated():
-            point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
+            my_point =  filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            opp_point = filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            point = 10000 * (my_point - opp_point)
             return point if state.turn == turn else -point
         return state.voronoi_heuristic_evaluate()
     max_val = -inf
@@ -275,9 +320,13 @@ def max_value(state, depth, alpha, beta):
 
 
 def min_value(state, depth, alpha, beta):
-    if depth == MINIMAX_DEPTH or state.avail_moves_count(state.pos) == 0:
+    if depth == MINIMAX_DEPTH:
         if state.is_separated():
-            point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
+            my_point =  filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            opp_point = filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            point = 10000 * (my_point - opp_point)
             return point if state.turn == turn else -point
         return state.voronoi_heuristic_evaluate()
     min_val = inf
@@ -299,7 +348,7 @@ def fill(state):
     if state.is_articulation_point():  # chọn thành phần liên thông size lớn nhất nếu hiện tại đang ở articulation point
         next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
     else:  # nếu không ở articulation point, dùng hàm đánh giá trạng thái để xác định nước tiếp theo:
-        next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 0))
+        next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 1))
     return next_state
 
 
@@ -315,6 +364,15 @@ def filling_evaluate(state):
         point -= 500
     return point
 
+def filling_evaluate_minimax(state):
+    """
+    Đánh giá heuristic cho trạng thái đã separated, dùng trong cuối phần minimax.
+    """
+    if state.is_articulation_point():  # nếu bot ở articular point, tính dựa trên trạng thái con lớn nhất
+        return filling_evaluate_minimax(max(state.avail_moves_1_player(), key = lambda x: filling_evaluate_minimax(x))) + 1
+    point = state.flood_fill_count(state.pos) - 3 * len(state.find_articulation_points())
+    # coi như trung bình 1 articular point sẽ kéo theo mất 3 điểm khác >>> trừ đi 3 lần
+    return point
 
 def filling_evaluate_with_depth(state, depth):
     """
@@ -355,7 +413,7 @@ else:
     # xét khoảng cách để kích hoạt minimax, nên dùng khi map nhiều vật cản 
     # vì dùng minimax từ đầu dễ tự bóp dái (không hiểu tại sao)
     if mat.activate_minimax(): 
-        new_pos = minimax(mat, 0).opp_pos
+        new_pos = minimax(mat, 1).opp_pos
     else:
         new_pos = max(mat.avail_moves_1_player(), key=lambda x: x.voronoi_heuristic_evaluate()).pos
 
