@@ -31,19 +31,19 @@ thì thay g bằng r ở dòng đầu).
 from math import inf
 from time import sleep, time
 from collections import deque
+import heapq
 
 reverse = {'r': 'g', 'g': 'r'}
 # constants:
 SIZE = 0 # kích thước bảng
 SQ_SIZE = 0 # SIZE * SIZE
 FILL_DEPTH = 6 # độ sâu chế độ space fill
-MINIMAX_DEPTH = 4 # độ sâu minimax
+MINIMAX_DEPTH = 5 # độ sâu minimax
 
 # handles input:
 SIZE = int(input())
 SQ_SIZE = SIZE * SIZE
 turn = input().rstrip()
-go_first = turn
 line2 = tuple(map(int, input().rstrip().split()))
 cur_pos = (line2[0], line2[1])
 opp_pos = (line2[2], line2[3])
@@ -244,14 +244,14 @@ class Matrix:
         return len(self.flood_fill(self.pos) & self.flood_fill(self.opp_pos)) == 0
 
     def manhattan_dist(self, pos1, pos2):
+        """
+        Khoảng cách manhattan (không dùng nữa).
+        """
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
     def min_dist_bfs(self, pos1, pos2):
         """ 
-        Khoảng cách nhỏ nhất dùng BFS. Test thử trên hackerrank thấy mạnh hơn
-        dùng manhattan distance.
-        Cơ mà duyệt minimax với độ sâu <= 5 thôi nhé. Độ sâu 5 thỉnh thoảng
-        vẫn nghĩ hơn 1s.
+        Khoảng cách nhỏ nhất dùng BFS (không dùng nữa).
         """
         visited = {pos1: 0} 
         queue = deque([pos1])
@@ -290,11 +290,38 @@ class Matrix:
         return inf # nếu pos1 và pos2 không cùng thành phần liên thông 
                    # thì trả về inf.
 
+    def min_dist_dijktra(self, pos):
+        """
+        Trả về một danh sách khoảng cách ngắn nhất từ tập điểm liên thông với 
+        pos tới pos.
+        """
+        V = self.flood_fill(pos)
+        d = {}
+        for v in V:
+            d[v] = inf
+        d[pos] = 0
+        for v in self.avail_moves_coor(pos):
+            d[v] = 1
+        V.remove(pos)
+        V = [(d[v], v) for v in V]
+        heapq.heapify(V)
+        while V:
+            u = heapq.heappop(V)[1]
+            for v in self.avail_moves_coor(u):
+                if d[v] > d[u] + 1:
+                    d[v] = d[u] + 1
+                    for i in range(len(V)):
+                        if V[i][1] == v:
+                            V[i] = (d[v], v)
+                            heapq.heapify(V)
+                            break
+        return d
+
     def voronoi_heuristic_evaluate(self):
         """
         Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax.
         Công thức: tổng bậc của các ô gần vị trí người chơi - tổng bậc các ô gần vị trí đối thủ
-        (tính theo khoảng cách manhattan) 
+        (tính theo khoảng cách ngắn nhất - dùng dijktra) 
 
         Ý tưởng: 
         .trừ điểm cho mỗi articular point trong lãnh thổ của mình 
@@ -303,39 +330,20 @@ class Matrix:
         """
         global turn
         point = 0
+        me = self.min_dist_dijktra(self.pos)
+        opp = self.min_dist_dijktra(self.opp_pos)
         for i in range(SIZE):
             for j in range(SIZE):
                 moves = self.avail_moves_count((i, j))
                 if self.matrix[i * SIZE + j] == '-':
-                    my_dist = self.min_dist_bfs(self.pos, (i, j))
-                    opp_dist = self.min_dist_bfs(self.opp_pos, (i, j))
+                    my_dist = me.get((i, j), inf)
+                    opp_dist = opp.get((i, j), inf)
                     if my_dist > opp_dist:
                         point -= moves
                     elif my_dist == opp_dist == inf:
                         pass # không ai tới được (i, j) thì thôi không xét
                     else:
                         point += moves # khoảng cách bằng nhau, bot của người chơi sẽ tới trước (do là game turn-based)
-        if self.turn == turn:
-            return point
-        return -point
-
-    def voronoi_heuristic_evaluate_simple(self):
-        """
-        Voronoi xét các ô có trọng số như nhau, không tính bậc.
-        """
-        global turn
-        point = 0
-        for i in range(SIZE):
-            for j in range(SIZE):
-                if self.matrix[i * SIZE + j] == '-':
-                    my_dist = self.min_dist_bfs(self.pos, (i, j))
-                    opp_dist = self.min_dist_bfs(self.opp_pos, (i, j))
-                    if my_dist > opp_dist:
-                        point -= 1
-                    elif my_dist == opp_dist == inf:
-                        pass # không ai tới được (i, j) thì thôi không xét
-                    else:
-                        point += 1 # khoảng cách bằng nhau, bot của người chơi sẽ tới trước (do là game turn-based)
         if self.turn == turn:
             return point
         return -point
@@ -387,15 +395,15 @@ def max_value(state, depth, alpha, beta):
     # viết ra đây cho rõ chứ trong trường hợp đấy hàm cũng tự trả về 
     # max_val = -inf như dưới rồi.
 
-    global turn, go_first
+    global turn
     if state.is_separated():
             # nếu 2 bot đã phân tách, áp dụng hàm đánh giá dựa trên flood fill
             # và nhân lên 10000 lần (vì còn nhiều space hơn >> thắng phần minimax)
-            point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
-            if turn != go_first: # khích lệ người đi sau
-                point += 10000
-            else: # yêu cầu cao hơn với người đi trước
-                point -= 10000
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            opp_point = filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            point = 10000 * (filling_evaluate_minimax(state) - opp_point - 1)
+            # cộng 1 vì nếu hai người còn cùng khoảng trống, người đi trước sẽ thua
             if point >= 0: # chỉ áp dụng khi người chơi sẽ thắng
                 return point if state.turn == turn else -point
 
@@ -412,16 +420,13 @@ def max_value(state, depth, alpha, beta):
 
 def min_value(state, depth, alpha, beta):
 
-    global turn, go_first
+    global turn
     if state.is_separated():
-            # nếu 2 bot đã phân tách, áp dụng hàm đánh giá dựa trên flood fill
-            # và nhân lên 10000 lần (vì còn nhiều space hơn >> thắng phần minimax)
-            point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
-            if turn != go_first: # khích lệ người đi sau
-                point += 10000
-            else: # yêu cầu cao hơn với người đi trước
-                point -= 10000
-            if point >= 0:
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            opp_point = filling_evaluate_minimax(state)
+            state.pos, state.opp_pos = state.opp_pos, state.pos
+            point = 10000 * (filling_evaluate_minimax(state) - opp_point - 1)
+            if point >= 0: # chỉ áp dụng khi người chơi sẽ thắng
                 return point if state.turn == turn else -point
 
     if depth == MINIMAX_DEPTH:
@@ -490,7 +495,7 @@ def filling_evaluate_minimax(state):
     """
     if state.is_articulation_point():  # nếu bot ở articular point, tính dựa trên trạng thái con lớn nhất
         return filling_evaluate_minimax(max(state.avail_moves_1_player(), key = lambda x: filling_evaluate_minimax(x))) + 1
-    point = state.flood_fill_count(state.pos) - 3 * len(state.find_articulation_points())
+    point = state.flood_fill_count(state.pos)
     # coi như trung bình 1 articular point sẽ kéo theo mất 3 điểm khác >>> trừ đi 3 lần
     return point
 
@@ -560,6 +565,9 @@ if mode == '1': # AI vs Player
             cur.turn = reverse[cur.turn]
             cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
             cur.display(0)
+        if cur.avail_moves_count(cur.opp_pos) == 0:
+            print("\nEnd game!")
+            break
         if cur.turn == 'g':
             print("\nAI move:")
             start = time()

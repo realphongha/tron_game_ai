@@ -1,6 +1,7 @@
 from math import inf
 from time import sleep, time
 from collections import deque
+import heapq
 
 reverse = {'r': 'g', 'g': 'r'}
 # constant:
@@ -211,11 +212,14 @@ class Matrix:
         return len(self.flood_fill(self.pos) & self.flood_fill(self.opp_pos)) == 0
 
     def manhattan_dist(self, pos1, pos2):
+        """
+        Khoảng cách manhattan (không dùng nữa).
+        """
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
     def min_dist_bfs(self, pos1, pos2):
         """ 
-        Khoảng cách nhỏ nhất dùng BFS.
+        Khoảng cách nhỏ nhất dùng BFS (không dùng nữa).
         """
         visited = {pos1: 0} 
         queue = deque([pos1])
@@ -253,27 +257,52 @@ class Matrix:
         self.matrix[pos2[0]*SIZE+pos2[1]] = temp
         return inf
 
+    def min_dist_dijktra(self, pos):
+        V = self.flood_fill(pos)
+        d = {}
+        for v in V:
+            d[v] = inf
+        d[pos] = 0
+        for v in self.avail_moves_coor(pos):
+            d[v] = 1
+        V.remove(pos)
+        V = [(d[v], v) for v in V]
+        heapq.heapify(V)
+        while V:
+            u = heapq.heappop(V)[1]
+            for v in self.avail_moves_coor(u):
+                if d[v] > d[u] + 1:
+                    d[v] = d[u] + 1
+                    for i in range(len(V)):
+                        if V[i][1] == v:
+                            V[i] = (d[v], v)
+                            heapq.heapify(V)
+                            break
+        return d
+
     def voronoi_heuristic_evaluate(self):
         """
         Đánh giá heuristic cho 1 trạng thái trước khi separated, dùng cho minimax
         Công thức: tổng bậc của các ô gần vị trí người chơi - tổng bậc các ô gần vị trí đối thủ
-        (tính theo khoảng cách manhattan) 
+        (tính dựa vào dijktra) 
         """
         global turn
         point = 0
+        me = self.min_dist_dijktra(self.pos)
+        opp = self.min_dist_dijktra(self.opp_pos)
         for i in range(SIZE):
             for j in range(SIZE):
                 moves = self.avail_moves_count((i, j))
                 if self.matrix[i * SIZE + j] == '-':
-                    my_dist = self.min_dist_bfs(self.pos, (i, j))
-                    opp_dist = self.min_dist_bfs(self.opp_pos, (i, j))
+                    my_dist = me.get((i, j), inf)
+                    opp_dist = opp.get((i, j), inf)
                     if my_dist > opp_dist:
-                        point -= (55 + 194 * moves)
+                        point -= moves
                     elif my_dist == opp_dist:
                         pass # không ai tới được (i, j) hoặc khoảng cách bằng nhau thì thôi không xét
                              # trong trường hợp kc bằng nhau, dẫn tới hòa, có thể trừ đi chút điểm
                     else:
-                        point += (55 + 194 * moves) 
+                        point += moves
                         # trường hợp khoảng cách bằng nhau:
                         # nếu là game di chuyển đồng thời, cho point += 0
                         # nếu là game theo lượt, point += 1 vì người chơi hiện tại sẽ tới trước
@@ -296,7 +325,6 @@ def minimax(state, depth, alpha, beta):
     .trong trường hợp đi sau, phần minimax k thắng được >> có thể cầm hòa.
     (vd phần space sau khi phân tách kém 1 ô >> return point = 0 chứ không phải
     -10000 * 1 như trước)
-    .hàm này chưa cắt tỉa được alpha beta ???
     """
     max_val = -inf
     for next_state in state.avail_moves():
@@ -310,9 +338,13 @@ def minimax(state, depth, alpha, beta):
 
 def max_value(state, depth, alpha, beta):
     if state.is_separated():
-        point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
+        state.pos, state.opp_pos = state.opp_pos, state.pos
+        opp_point = filling_evaluate_minimax(state)
+        state.pos, state.opp_pos = state.opp_pos, state.pos
+        point = 10000 * (filling_evaluate_minimax(state) - opp_point)
         if point > 0:
             return point if state.turn == turn else -point
+
     if depth == MINIMAX_DEPTH:
         return state.voronoi_heuristic_evaluate()
     max_val = -inf
@@ -326,9 +358,13 @@ def max_value(state, depth, alpha, beta):
 
 def min_value(state, depth, alpha, beta):
     if state.is_separated():
-        point = 10000 * (state.flood_fill_count(state.pos) - state.flood_fill_count(state.opp_pos))
+        state.pos, state.opp_pos = state.opp_pos, state.pos
+        opp_point = filling_evaluate_minimax(state)
+        state.pos, state.opp_pos = state.opp_pos, state.pos
+        point = 10000 * (filling_evaluate_minimax(state) - opp_point)
         if point > 0:
             return point if state.turn == turn else -point
+
     if depth == MINIMAX_DEPTH:
         return state.voronoi_heuristic_evaluate()
     min_val = inf
