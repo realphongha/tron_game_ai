@@ -1,0 +1,28 @@
+#wrapper{
+	width: 800px;
+	margin: auto;
+}
+#name{
+	width: 800px;
+	height: 100px;
+	background-color: blue;
+	margin: auto;
+}
+#teamX{
+	width: 150px;
+	height: 650px;
+	background-color: gray;
+	float: left;
+}
+#map{
+	width: 500px;
+	height: 650px;
+	background-color: green;
+	float: left;
+}
+#teamX{
+	width: 150px;
+	height: 650px;
+	background-color: gray;
+	float: left;
+}

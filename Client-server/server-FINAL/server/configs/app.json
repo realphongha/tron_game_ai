@@ -1,0 +1,8 @@
+{
+  "time_out" : 10,
+  "map" : {
+    "row_nums" : 15,
+    "col_nums" : 15,
+    "trap": 5
+  }
+}
