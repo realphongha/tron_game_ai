@@ -486,12 +486,12 @@ public class Bot4_GameOriginBot extends AbstractClientPlayer{
 		int alpha = MINIMUM;
 		int beta = MAXIMUM;
 		amountnode = 0;
-		map.drawMap(x, y, xe, ye, isTeamX); // debug
+		//map.drawMap(x, y, xe, ye, isTeamX); // debug
 		if (map.isSpace(x, y + 1)) {
 			Map maptemp = new Map(map);
 			setMyTeam(maptemp, x, y + 1);
 			int temp = minValue(maptemp, x, y + 1, xe, ye, depth - 1, alpha, beta);
-			System.out.println("Evaluate right: "+temp); // debug
+			//System.out.println("Evaluate right: "+temp); // debug
 			if (temp > value) {
 				value = temp;
 				direction = Direction.RIGHT;
@@ -501,7 +501,7 @@ public class Bot4_GameOriginBot extends AbstractClientPlayer{
 			Map maptemp = new Map(map);
 			setMyTeam(maptemp, x, y - 1);
 			int temp = minValue(maptemp, x, y - 1, xe, ye, depth - 1, alpha, beta);
-			System.out.println("Evaluate left: "+temp); // debug
+			//System.out.println("Evaluate left: "+temp); // debug
 			if (temp > value) {
 				value = temp;
 				direction = Direction.LEFT;
@@ -511,7 +511,7 @@ public class Bot4_GameOriginBot extends AbstractClientPlayer{
 			Map maptemp = new Map(map);
 			setMyTeam(maptemp, x + 1, y);
 			int temp = minValue(maptemp, x + 1, y, xe, ye, depth - 1, alpha, beta);
-			System.out.println("Evaluate down: "+temp); // debug
+			//System.out.println("Evaluate down: "+temp); // debug
 			if (temp > value) {
 				value = temp;
 				direction = Direction.DOWN;
@@ -521,7 +521,7 @@ public class Bot4_GameOriginBot extends AbstractClientPlayer{
 			Map maptemp = new Map(map);
 			setMyTeam(maptemp, x - 1, y);
 			int temp = minValue(maptemp, x - 1, y, xe, ye, depth - 1, alpha, beta);
-			System.out.println("Evaluate up: "+temp); // debug
+			//System.out.println("Evaluate up: "+temp); // debug
 			if (temp > value) {
 				value = temp;
 				direction = Direction.UP;

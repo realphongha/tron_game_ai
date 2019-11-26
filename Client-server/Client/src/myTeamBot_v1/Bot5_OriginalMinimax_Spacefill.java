@@ -44,6 +44,7 @@ public class Bot5_OriginalMinimax_Spacefill extends AbstractClientPlayer{
 		
 		// Thêm các khởi tạo cho lớp nếu cần
 		// ...
+		System.out.println("My team is: " + teamSymbol + "\n"); // debug
 	}
 	
 	@Override
@@ -761,8 +762,8 @@ public class Bot5_OriginalMinimax_Spacefill extends AbstractClientPlayer{
 		if (countAvailMove == 0)
 			return -10000;
 		
-		map.drawMap(myPos.x, myPos.y, enemyPos.x, enemyPos.y, isTeamX);
-		System.out.print(countArticulationPoints(map, pos));
+		//map.drawMap(myPos.x, myPos.y, enemyPos.x, enemyPos.y, isTeamX);
+		//System.out.print(countArticulationPoints(map, pos));
 			
 		int point = countFloodFill(map, pos) - 2*countAvailMove - 4*countArticulationPoints(map, pos);
 		if (isArticulationPoint(map, pos)) 
