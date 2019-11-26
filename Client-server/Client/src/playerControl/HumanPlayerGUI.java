@@ -9,10 +9,14 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,7 +40,7 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 	private int map_size;
 	private int[][] map;
 	Vector2 myPos, enemyPos;
-	private boolean upAvailable, downAvailable, leftAvailable, rightAvailable;
+	private boolean upAvailable, downAvailable, leftAvailable, rightAvailable, surrenderAvailable;
 	
 	public HumanPlayerGUI(String team) 
 			throws Exception {
@@ -90,6 +94,7 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 		message.setText("Your turn");
 		
 		upAvailable = downAvailable = leftAvailable = rightAvailable = false;
+		surrenderAvailable = true;
 		
 		if (myPos.x > 0 && map[myPos.x-1][myPos.y] == 0) {
 			upButton.setEnabled(true);
@@ -107,6 +112,7 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 			rightAvailable = true;
 			rightButton.setEnabled(true);
 		}
+		surrenderButton.setEnabled(true);
 
 		while (!moved) {
 			try {
@@ -129,9 +135,8 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 		controller.setTitle("Controller - Cuộc chiến lãnh thổ");
 		controller.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		controller.setResizable(true);
-		controller.setSize(BUTTON_SIZE * 3 + BUTTON_SPACING * 2, BUTTON_SIZE * 2 + BUTTON_SPACING * 1 + MESSAGE_AREA_HEIGHT);
+		controller.setSize(BUTTON_SIZE * 3 + BUTTON_SPACING * 4, BUTTON_SIZE * 2 + BUTTON_SPACING * 4 + MESSAGE_AREA_HEIGHT);
 		
-		controller.addKeyListener(new KeyControlListener());
 		
 		message = new JLabel();
 		message.setText("Game hasn't started");
@@ -146,62 +151,95 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 //				"←","↓","→"
 //		};
 		
-		// add nothingness
-		surrenderButton = new JButton("=(");
-		surrenderButton.addActionListener(new ActionListener() {
-		    @Override
-		    public void actionPerformed(ActionEvent e) {
-		    	moveByPlayer(0);
-		    }
-		});
-		controlPanel.add(surrenderButton);
 		
-		// add up button
-		upButton = new JButton("↑");
-		upButton.addActionListener(new ActionListener() {
-		    @Override
+		
+		Action moveUp = new AbstractAction() {
+			@Override
 		    public void actionPerformed(ActionEvent e) {
 		    	moveByPlayer(1);
 		    }
-		});
+		};
+		Action moveDown = new AbstractAction() {
+			@Override
+		    public void actionPerformed(ActionEvent e) {
+		    	moveByPlayer(3);
+		    }
+		};
+		Action moveLeft = new AbstractAction() {
+			@Override
+		    public void actionPerformed(ActionEvent e) {
+		    	moveByPlayer(2);
+		    }
+		};
+		Action moveRight = new AbstractAction() {
+			@Override
+		    public void actionPerformed(ActionEvent e) {
+		    	moveByPlayer(4);
+		    }
+		};
+		Action surrender = new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+		    public void actionPerformed(ActionEvent e) {
+		    	moveByPlayer(0);
+		    }
+		};
+		
+		// add nothingness
+		surrenderButton = new JButton("=(");
+		surrenderButton.addActionListener(surrender);
+		controlPanel.add(surrenderButton);
+		surrenderButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("p"),"surrender");
+		surrenderButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("P"),"surrender");
+		surrenderButton.getActionMap().put("surrender", surrender);
+		
+		// add up button
+		upButton = new JButton("↑");
+		upButton.addActionListener(moveUp);
 		controlPanel.add(upButton);
+		upButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("w"),"moveUp");
+		upButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("W"),"moveUp");
+		upButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("UP"),"moveUp");
+		upButton.getActionMap().put("moveUp", moveUp);
 		
 		// add nothingness
 		controlPanel.add(new JLabel(""));
 		
 		// add left button
 		leftButton = new JButton("←");
-		leftButton.addActionListener(new ActionListener() {
-			@Override
-				public void actionPerformed(ActionEvent e) {
-					moveByPlayer(2);
-				}
-			});
+		leftButton.addActionListener(moveLeft);
 		controlPanel.add(leftButton);
+		leftButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("a"),"moveLeft");
+		leftButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("A"),"moveLeft");
+		leftButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("LEFT"),"moveLeft");
+		leftButton.getActionMap().put("moveLeft", moveLeft);
 		
 		// add down button
 		downButton = new JButton("↓");
-		downButton.addActionListener(new ActionListener() {
-			@Override
-				public void actionPerformed(ActionEvent e) {
-					moveByPlayer(3);
-				}
-			});
+		downButton.addActionListener(moveDown);
 		controlPanel.add(downButton);
+		controlPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("s"),"moveDown");
+		controlPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("S"),"moveDown");
+		controlPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("DOWN"),"moveDown");
+		controlPanel.getActionMap().put("moveDown", moveDown);
 		
 		// add right button
 		rightButton = new JButton("→");
-		rightButton.addActionListener(new ActionListener() {
-			@Override
-				public void actionPerformed(ActionEvent e) {
-					moveByPlayer(4);
-				}
-			});
+		rightButton.addActionListener(moveRight);
 		controlPanel.add(rightButton);
+		rightButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("d"),"moveRight");
+		rightButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("D"),"moveRight");
+		rightButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("RIGHT"),"moveRight");
+		rightButton.getActionMap().put("moveRight", moveRight);
+		
+		
+		
 		upButton.setEnabled(false);
 		downButton.setEnabled(false);
 		leftButton.setEnabled(false);
 		rightButton.setEnabled(false);
+		surrenderButton.setEnabled(false);
 						
 		controller.setVisible(true);
 	}
@@ -215,8 +253,10 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 			semaphore.acquire();
 			switch (direction) {
 			case 0: // surrender
-				lockAllButton();
-				moved = true;
+				if (surrenderAvailable) {
+					lockAllButton();
+					moved = true;
+				}				
 				break;
 			case 1:
 				if (upAvailable) {
@@ -262,18 +302,8 @@ public class HumanPlayerGUI extends AbstractClientPlayer{
 		downButton.setEnabled(false);
 		leftButton.setEnabled(false);
 		rightButton.setEnabled(false);
-		upAvailable = downAvailable = leftAvailable = rightAvailable = false;
+		surrenderButton.setEnabled(false);
+		upAvailable = downAvailable = leftAvailable = rightAvailable = surrenderAvailable = false;
 	}
 	
-	private class KeyControlListener extends KeyAdapter {
-	    @Override
-	    public void keyPressed(KeyEvent event) {
-	    	char ch = event.getKeyChar();
-	    	if 		(ch == 'w' || ch == 'W' || ch == KeyEvent.VK_UP) 	{ moveByPlayer(1); }
-	    	else if (ch == 'a' || ch == 'A' || ch == KeyEvent.VK_LEFT) 	{ moveByPlayer(2); }
-	    	else if (ch == 's' || ch == 'S' || ch == KeyEvent.VK_DOWN) 	{ moveByPlayer(3); }
-	    	else if (ch == 'd' || ch == 'D' || ch == KeyEvent.VK_RIGHT) { moveByPlayer(4); }
-	    	else if (ch == 'p' || ch == 'P') 							{ moveByPlayer(0); }
-	    }
-	}
 }

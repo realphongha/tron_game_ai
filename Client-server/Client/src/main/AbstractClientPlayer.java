@@ -9,6 +9,7 @@ import io.socket.emitter.Emitter;
 public abstract class AbstractClientPlayer {
 	private Socket socket;
 	protected String teamSymbol;
+	protected boolean isTeamX;
 	
 	public class Vector2{
 		public int x;
@@ -29,6 +30,7 @@ public abstract class AbstractClientPlayer {
 	public AbstractClientPlayer(String _team) 
 			throws Exception {
 		teamSymbol = _team;
+		isTeamX = ((teamSymbol == "X") ? true : false);
 		
 		JSONObject teamInfo = configTeamInfo();
 		

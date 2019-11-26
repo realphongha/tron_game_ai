@@ -6,9 +6,11 @@ import org.json.JSONException;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import myTeamBot_v1.Bot5_OriginalMinimax_Spacefill;
+import originalBot.Bot4_GameOriginBot;
 import playerControl.HumanPlayer;
 import playerControl.HumanPlayerGUI;
-import testingBot.Bot1_RandomWalk;
+import simpleTestingBot.Bot1_RandomWalk;
 
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -47,6 +49,8 @@ public class clientGame {
 					+ "1. Human Player\n"
 					+ "2. Human player GUI\n"
 					+ "3. Random walk\n"
+					+ "4. Original game's bot\n"
+					+ "5. My Team s Bot: Combine original minimax + space fill by articulation point\n"
 					+ "Input the bot you choose: ");
 			int botNumber = in.nextInt();
 				
@@ -70,18 +74,26 @@ public class clientGame {
 				// VD: new botExample(teamSymbol);
 			switch (botNumber) {
 			case 1:
-				System.out.print("You joined the game. Have fun! ^^");
+				System.out.print("You joined the game. Have fun! ^^\n");
 				new HumanPlayer(team_symbol); 	// tự mình điều khiển bằng giao diện dòng lệnh
 				break;
 			case 2:
 				new HumanPlayerGUI(team_symbol); // tự mình điều khiển, sử dụng giao diện đồ họa, có phím bấm các hướng đi
 				break;
 			case 3:
-				System.out.print("Use stupid random walk bot :|");
+				System.out.print("Use stupid random walk bot :|\n");
 				new Bot1_RandomWalk(team_symbol); 	// Random walk bot
 				break;
+			case 4:
+				System.out.print("Use original game's bot ;]\n");
+				new Bot4_GameOriginBot(team_symbol); 	// Bot trong game của thầy
+				break;
+			case 5:
+				System.out.print("Use my team's bot ;]\n");
+				new Bot5_OriginalMinimax_Spacefill(team_symbol); 	// Bot trong game của thầy
+				break;
 			default:
-				System.out.print("Use pro bot !");
+				System.out.print("Use no bot, no player !\n");
 				//new clientGame(teamInfo);
 				break;
 			}
