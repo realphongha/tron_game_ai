@@ -328,7 +328,6 @@ class Matrix:
         .nghiên cứu thêm về chambers tree (https://www.a1k0n.net/2010/03/04/google-ai-postmortem.html)
         .hàm utility của a1k0n 55 (n1-n2) + 194 (e1-e2)?
         """
-        global turn
         point = 0
         me = self.min_dist_dijktra(self.pos)
         opp = self.min_dist_dijktra(self.opp_pos)
@@ -344,15 +343,13 @@ class Matrix:
                         pass # không ai tới được (i, j) thì thôi không xét
                     else:
                         point += moves # khoảng cách bằng nhau, bot của người chơi sẽ tới trước (do là game turn-based)
-        if self.turn == turn:
-            return point
-        return -point
+        return point
 
     def activate_minimax(self):
         """
         Chỉ sử dụng minimax khi đủ gần.
         """
-        return self.min_dist_bfs_obstacle(self.pos, self.opp_pos) <= MINIMAX_DEPTH + 1
+        return self.min_dist_bfs_obstacle(self.pos, self.opp_pos) <= MINIMAX_DEPTH * 2
 
 
 # Minimax algorithm: {{
@@ -385,6 +382,8 @@ def minimax(state, depth, alpha, beta):
             return_state = next_state
         alpha = max(alpha, max_val)
     print(max_val)
+    if max_val == -inf:
+        return tuple(state.avail_moves())[0]
     return return_state
 
 
@@ -394,49 +393,45 @@ def max_value(state, depth, alpha, beta):
     # >> khi vào deadend, trả về -inf nếu là turn người chơi và ngược lại
     # viết ra đây cho rõ chứ trong trường hợp đấy hàm cũng tự trả về 
     # max_val = -inf như dưới rồi.
-
     global turn
-    if state.is_separated():
-            # nếu 2 bot đã phân tách, áp dụng hàm đánh giá dựa trên flood fill
-            # và nhân lên 10000 lần (vì còn nhiều space hơn >> thắng phần minimax)
-            state.pos, state.opp_pos = state.opp_pos, state.pos
-            opp_point = filling_evaluate_minimax(state)
-            state.pos, state.opp_pos = state.opp_pos, state.pos
-            point = 10000 * (filling_evaluate_minimax(state) - opp_point - 1)
-            # cộng 1 vì nếu hai người còn cùng khoảng trống, người đi trước sẽ thua
-            if point >= 0: # chỉ áp dụng khi người chơi sẽ thắng
-                return point if state.turn == turn else -point
-
+    # if state.is_separated():
+    #         # nếu 2 bot đã phân tách, áp dụng hàm đánh giá dựa trên flood fill
+    #         # và nhân lên 10000 lần (vì còn nhiều space hơn >> thắng phần minimax)
+    #         state.pos, state.opp_pos = state.opp_pos, state.pos
+    #         opp_point = filling_evaluate_minimax(state)
+    #         state.pos, state.opp_pos = state.opp_pos, state.pos
+    #         point = filling_evaluate_minimax(state) - opp_point - 0.5
+    #         # trừ 0.5 vì hai người còn cùng khoảng trống, người đi trước sẽ thua
+    #         return point if state.turn == turn else -point 
     if depth == MINIMAX_DEPTH:
-        return state.voronoi_heuristic_evaluate()
+        return state.voronoi_heuristic_evaluate() if state.turn == turn \
+               else -state.voronoi_heuristic_evaluate()
     max_val = -inf
     for next_state in state.avail_moves():
         max_val = max(max_val, min_value(next_state, depth + 1, alpha, beta))
-        if max_val >= beta:
-            return max_val
         alpha = max(alpha, max_val)
+        if alpha >= beta:
+            return max_val
     return max_val
 
 
 def min_value(state, depth, alpha, beta):
-
     global turn
-    if state.is_separated():
-            state.pos, state.opp_pos = state.opp_pos, state.pos
-            opp_point = filling_evaluate_minimax(state)
-            state.pos, state.opp_pos = state.opp_pos, state.pos
-            point = 10000 * (filling_evaluate_minimax(state) - opp_point - 1)
-            if point >= 0: # chỉ áp dụng khi người chơi sẽ thắng
-                return point if state.turn == turn else -point
-
+    # if state.is_separated():
+    #         state.pos, state.opp_pos = state.opp_pos, state.pos
+    #         opp_point = filling_evaluate_minimax(state)
+    #         state.pos, state.opp_pos = state.opp_pos, state.pos
+    #         point = filling_evaluate_minimax(state) - opp_point - 0.5
+    #         return point if state.turn == turn else -point
     if depth == MINIMAX_DEPTH:
-        return state.voronoi_heuristic_evaluate()
+        return state.voronoi_heuristic_evaluate() if state.turn == turn \
+               else -state.voronoi_heuristic_evaluate()
     min_val = inf
     for next_state in state.avail_moves():
         min_val = min(min_val, max_value(next_state, depth + 1, alpha, beta))
-        if min_val <= alpha:
-            return min_val
         beta = min(beta, min_val)
+        if alpha >= beta:
+            return min_val
     return min_val
 # }}
 
@@ -492,11 +487,12 @@ def filling_evaluate(state):
 def filling_evaluate_minimax(state):
     """
     Đánh giá heuristic cho trạng thái đã separated, dùng trong cuối phần minimax.
+    .xét tới articulation point?
     """
     if state.is_articulation_point():  # nếu bot ở articular point, tính dựa trên trạng thái con lớn nhất
-        return filling_evaluate_minimax(max(state.avail_moves_1_player(), key = lambda x: filling_evaluate_minimax(x))) + 1
+        #return filling_evaluate_minimax(max(state.avail_moves_1_player(), key = lambda x: filling_evaluate_minimax(x))) + 1
+        return max(map(lambda x: filling_evaluate_minimax(x), state.avail_moves_1_player())) + 1
     point = state.flood_fill_count(state.pos)
-    # coi như trung bình 1 articular point sẽ kéo theo mất 3 điểm khác >>> trừ đi 3 lần
     return point
 
 
@@ -588,7 +584,7 @@ if mode == '1': # AI vs Player
 
                 # if cur.activate_minimax():
                 #     print("MINIMAX MODE!") 
-                #     cur = minimax(cur, 1)
+                #     cur = minimax(cur, 1, -inf, inf)
                 # else:
                 #     print("PRE MINIMAX MODE!")
                 #     cur = max(cur.avail_moves_1_player(), key=lambda x: x.voronoi_heuristic_evaluate())
@@ -623,7 +619,7 @@ elif mode == '2': # AI vs AI
 
                 # if cur.activate_minimax(): 
                 #     print("MINIMAX MODE!") 
-                #     cur = minimax(cur, 1)
+                #     cur = minimax(cur, 1, -inf, inf)
                 # else:
                 #     print("PRE MINIMAX MODE!")
                 #     print(cur.min_dist_bfs(cur.pos, cur.opp_pos))
