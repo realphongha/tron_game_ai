@@ -77,24 +77,28 @@ class Matrix:
         """
         if self.pos[0] + 1 < SIZE:
             if self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] == '-':
-                self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = self.turn
-                yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0] + 1, self.pos[1]))
-                self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = '-'
+                # self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = self.turn
+                # yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0] + 1, self.pos[1]))
+                # self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = '-'
+                yield 1
         if self.pos[0] - 1 >= 0:
             if self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] == '-' and self.pos[0] - 1 >= 0:
-                self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = self.turn
-                yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0] - 1, self.pos[1]))
-                self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = '-'
+                # self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = self.turn
+                # yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0] - 1, self.pos[1]))
+                # self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = '-'
+                yield 2
         if self.pos[1] + 1 < SIZE:
             if self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] == '-' and self.pos[1] + 1 < SIZE:
-                self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = self.turn
-                yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0], self.pos[1] + 1))
-                self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = '-'
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = self.turn
+                # yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0], self.pos[1] + 1))
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = '-'
+                yield 3
         if self.pos[1] - 1 >= 0:
             if self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] == '-' and self.pos[1] - 1 >= 0:
-                self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = self.turn
-                yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0], self.pos[1] - 1))
-                self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = '-'
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = self.turn
+                # yield Matrix(self.matrix, reverse[self.turn], self.opp_pos, (self.pos[0], self.pos[1] - 1))
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = '-'
+                yield 4
 
     def avail_moves_1_player(self):
         """
@@ -102,24 +106,28 @@ class Matrix:
         """
         if self.pos[0] + 1 < SIZE:
             if self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] == '-' and self.pos[0] + 1 < SIZE:
-                self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = self.turn
-                yield Matrix(self.matrix, self.turn, (self.pos[0] + 1, self.pos[1]), self.opp_pos)
-                self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = '-'
+                # self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = self.turn
+                # yield Matrix(self.matrix, self.turn, (self.pos[0] + 1, self.pos[1]), self.opp_pos)
+                # self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = '-'
+                yield 1
         if self.pos[0] - 1 >= 0:
             if self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] == '-' and self.pos[0] - 1 >= 0:
-                self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = self.turn
-                yield Matrix(self.matrix, self.turn, (self.pos[0] - 1, self.pos[1]), self.opp_pos)
-                self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = '-'
+                # self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = self.turn
+                # yield Matrix(self.matrix, self.turn, (self.pos[0] - 1, self.pos[1]), self.opp_pos)
+                # self.matrix[(self.pos[0] - 1) * SIZE + self.pos[1]] = '-'
+                yield 2
         if self.pos[1] + 1 < SIZE:
             if self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] == '-' and self.pos[1] + 1 < SIZE:
-                self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = self.turn
-                yield Matrix(self.matrix, self.turn, (self.pos[0], self.pos[1] + 1), self.opp_pos)
-                self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = '-'
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = self.turn
+                # yield Matrix(self.matrix, self.turn, (self.pos[0], self.pos[1] + 1), self.opp_pos)
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] + 1] = '-'
+                yield 3
         if self.pos[1] - 1 >= 0:
             if self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] == '-' and self.pos[1] - 1 >= 0:
-                self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = self.turn
-                yield Matrix(self.matrix, self.turn, (self.pos[0], self.pos[1] - 1), self.opp_pos)
-                self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = '-'
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = self.turn
+                # yield Matrix(self.matrix, self.turn, (self.pos[0], self.pos[1] - 1), self.opp_pos)
+                # self.matrix[self.pos[0] * SIZE + self.pos[1] - 1] = '-'
+                yield 4
 
     def move(self, dir):
         # dir = direction
@@ -144,22 +152,22 @@ class Matrix:
             self.pos = (self.pos[0], self.pos[1] - 1)
             self.pos, self.opp_pos = self.opp_pos, self.pos
         elif dir == -1:
-            self.matrix[self.pos[0] * SIZE + self.pos[1]] = '-'
+            self.matrix[self.opp_pos[0] * SIZE + self.opp_pos[1]] = '-'
             self.turn = reverse[self.turn]
             self.opp_pos = (self.opp_pos[0] - 1, self.opp_pos[1])
             self.pos, self.opp_pos = self.opp_pos, self.pos
         elif dir == -2:
-            self.matrix[self.pos[0] * SIZE + self.pos[1]] = '-'
+            self.matrix[self.opp_pos[0] * SIZE + self.opp_pos[1]] = '-'
             self.turn = reverse[self.turn]
             self.opp_pos = (self.opp_pos[0] + 1, self.opp_pos[1])
             self.pos, self.opp_pos = self.opp_pos, self.pos
         elif dir == -3:
-            self.matrix[self.pos[0] * SIZE + self.pos[1]] = '-'
+            self.matrix[self.opp_pos[0] * SIZE + self.opp_pos[1]] = '-'
             self.turn = reverse[self.turn]
             self.opp_pos = (self.opp_pos[0], self.opp_pos[1] - 1)
             self.pos, self.opp_pos = self.opp_pos, self.pos
         elif dir == -4:
-            self.matrix[self.pos[0] * SIZE + self.pos[1]] = '-'
+            self.matrix[self.opp_pos[0] * SIZE + self.opp_pos[1]] = '-'
             self.turn = reverse[self.turn]
             self.opp_pos = (self.opp_pos[0], self.opp_pos[1] + 1)
             self.pos, self.opp_pos = self.opp_pos, self.pos
@@ -321,9 +329,14 @@ class Matrix:
         """
         try:
             next_move = tuple(self.avail_moves_1_player())[0]
-            return self.flood_fill_count(self.pos) - 1 != next_move.flood_fill_count(next_move.pos)
+            cur_flood_fill = self.flood_fill_count(self.pos)
+            self.move_1_player(next_move)
+            next_flood_fill = self.flood_fill_count(self.pos)
+            self.move_1_player(-next_move)
+            # return self.flood_fill_count(self.pos) - 1 != next_move.flood_fill_count(next_move.pos)
+            return cur_flood_fill - 1 != next_flood_fill
         except:
-            return False
+            return False  # khi không có nút kề
 
     def is_separated(self):
         """
@@ -516,17 +529,20 @@ def minimax(state, depth, alpha, beta):
     -10000 * 1 như trước)
     """
     max_val = -inf
-    for next_state in state.avail_moves():
-        next_min = min_value(next_state, depth + 1, alpha, beta)
+    return_move = 0
+    for next_move in state.avail_moves():
+        state.move(next_move)
+        next_min = min_value(state, depth + 1, alpha, beta)
         if max_val < next_min:
             max_val = next_min
-            return_state = next_state
+            return_move = next_move
         alpha = max(alpha, max_val)
+        state.move(-next_move)
     print(max_val)
     # chắc không cần nữa:
     # if max_val == -inf:
     #     return tuple(state.avail_moves())[0]
-    return return_state
+    return return_move
 
 
 def max_value(state, depth, alpha, beta):
@@ -549,8 +565,10 @@ def max_value(state, depth, alpha, beta):
         point = 31 * state.voronoi_point() + 11 * state.voronoi_edges()
         return point if state.turn == turn else -point
     max_val = -inf
-    for next_state in state.avail_moves():
-        max_val = max(max_val, min_value(next_state, depth + 1, alpha, beta))
+    for next_move in state.avail_moves():
+        state.move(next_move)
+        max_val = max(max_val, min_value(state, depth + 1, alpha, beta))
+        state.move(-next_move)
         alpha = max(alpha, max_val)
         if alpha >= beta:
             return max_val
@@ -569,8 +587,10 @@ def min_value(state, depth, alpha, beta):
         point = 31 * state.voronoi_point() + 11 * state.voronoi_edges()
         return point if state.turn == turn else -point
     min_val = inf
-    for next_state in state.avail_moves():
-        min_val = min(min_val, max_value(next_state, depth + 1, alpha, beta))
+    for next_move in state.avail_moves():
+        state.move(next_move)
+        min_val = min(min_val, max_value(state, depth + 1, alpha, beta))
+        state.move(-next_move)
         beta = min(beta, min_val)
         if alpha >= beta:
             return min_val
@@ -593,28 +613,16 @@ def fill(state):
     #     next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
     # else:  # nếu không ở articulation point, dùng hàm đánh giá trạng thái để xác định nước tiếp theo:
     #     next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 1))
-    next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 1))
-    return next_state
+    max_val = -100000
+    for next_move in state.avail_moves_1_player():
+        state.move_1_player(next_move)
+        point = filling_evaluate_with_depth(state, 1)
+        state.move_1_player(-next_move)
+        if point > max_val:
+            max_val = point
+            return_move = next_move
+    return return_move
 
-def fill_greedy(state):
-    """
-    Fill dùng greedy heuristic. 
-    Kỳ vọng sẽ thay cho hàm fill() bên trên nhưng tới giờ vẫn chạy như cc.
-    Đọc hàm greedy_filling_evaluate() ở dưới để biết thêm.
-    """
-    remaining = 0
-    next_states = [] # lưu đường đi lấy được vào đây
-    if state.is_articulation_point():  # chọn thành phần liên thông size lớn nhất nếu hiện tại đang ở articulation point
-        next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
-        remaining = 0
-    elif remaining == 0:
-        next_states = greedy_filling_evaluate(state, 1)[1][:-1]
-        remaining = len(next_states) - 1
-        next_state = next_states.pop()
-    else:
-        remaining -= 1
-        next_state = next_states.pop()
-    return next_state
 
 def filling_evaluate(state):
     """
@@ -656,37 +664,11 @@ def filling_evaluate_with_depth(state, depth):
             point -= 500
         return point
     max_val = -inf
-    for next_state in state.avail_moves_1_player():
-        max_val = max(max_val, filling_evaluate_with_depth(next_state, depth + 1))
+    for next_move in state.avail_moves_1_player():
+        state.move_1_player(next_move)
+        max_val = max(max_val, filling_evaluate_with_depth(state, depth + 1))
+        state.move_1_player(-next_move)
     return filling_evaluate(state) + max_val / (depth + 1)
-
-def greedy_filling_evaluate(state, depth):
-    """
-    Trả về trạng thái con ở cuối cây với giá trị lớn nhất và đường đi từ trạng thái hiện tại tới đó.
-    """
-    moves_count = state.avail_moves_count(state.pos)
-    if moves_count == 0:
-        return (-10000, [state])
-    if depth == FILL_DEPTH:
-        point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
-        if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
-            point -= 500
-        return (point, [state])
-    max_val = (-inf, None)
-    for next_state in state.avail_moves_1_player():
-        max_val = max(max_val, greedy_filling_evaluate(next_state, depth + 1), key = lambda x: x[0])
-    max_val[1].append(state) 
-    return max_val
-
-def return_move(new, old):
-    if new[0] == old[0] + 1 and new[1] == old[1]:
-        return "DOWN"
-    if new[0] == old[0] - 1 and new[1] == old[1]:
-        return "UP"
-    if new[0] == old[0] and new[1] == old[1] + 1:
-        return "RIGHT"
-    if new[0] == old[0] and new[1] == old[1] - 1:
-        return "LEFT"
 # }}
 
 
@@ -718,14 +700,16 @@ if mode == '1': # AI vs Player
             ### AI thinking...
             if cur.is_separated():
                 print("FILL MODE!")
-                cur = fill(cur)
+                next_move = fill(cur)
+                cur.move_1_player(next_move)
                 cur.turn = reverse[cur.turn]
                 cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
             else:
                 # dùng minimax luôn từ đầu:
 
                 print("MINIMAX MODE!")
-                cur = minimax(cur, 1, -inf, inf)
+                next_move = minimax(cur, 1, -inf, inf)
+                cur.move(next_move)
 
                 # hai bot gần nhau mới dùng:
 
@@ -753,14 +737,16 @@ elif mode == '2': # AI vs AI
             ### AI thinking...
             if cur.is_separated():
                 print("FILL MODE!")
-                cur = fill(cur)
+                next_move = fill(cur)
+                cur.move_1_player(next_move)
                 cur.turn = reverse[cur.turn]
                 cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
             else:
                 # dùng minimax luôn từ đầu:
 
                 print("MINIMAX MODE!")
-                cur = minimax(cur, 1, -inf, inf)
+                next_move = minimax(cur, 1, -inf, inf)
+                cur.move(next_move)
 
                 # hai bot gần nhau mới dùng:
 
