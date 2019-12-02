@@ -30,6 +30,7 @@ thì thay g bằng r ở dòng đầu).
 
 from math import inf
 from time import sleep, time
+import timeit
 from collections import deque
 import heapq
 
@@ -38,7 +39,7 @@ reverse = {'r': 'g', 'g': 'r'}
 SIZE = 0 # kích thước bảng
 SQ_SIZE = 0 # SIZE * SIZE
 FILL_DEPTH = 6 # độ sâu chế độ space fill
-MINIMAX_DEPTH = 7 # độ sâu minimax
+MINIMAX_DEPTH = 4 # độ sâu minimax
 
 # handles input:
 SIZE = int(input())
@@ -243,6 +244,20 @@ class Matrix:
                     count += 1
         return count
 
+    def flood_fill_count_no_aps(self, cur_pos):
+        aps = self.find_articulation_points()
+        added = {cur_pos}
+        wasnt_popped = {cur_pos}
+        count = 0
+        while wasnt_popped:
+            pos = wasnt_popped.pop()
+            for next_pos in self.avail_moves_coor(pos):
+                if next_pos not in added and next_pos not in aps:
+                    added.add(next_pos)
+                    wasnt_popped.add(next_pos)
+                    count += self.avail_moves_count(next_pos)
+        return count
+
     def flood_fill_count_checkerboard(self, cur_pos):
         # đếm space bằng phương pháp "red-and-black squares"
         visited = {cur_pos: True} 
@@ -260,6 +275,65 @@ class Matrix:
                     visited[next_pos] = not visited[pos] 
                     stack.append(next_pos)
         return 2 * min(count_red, count_black)
+
+    def flood_fill_voronoi(self, my_pos, opp_pos):
+        added = {}
+        my_queue = {my_pos}
+        opp_queue = {opp_pos}
+        while not(not my_queue and not opp_queue):
+            new_my_q = set()
+            for pos in my_queue:
+                for next_pos in self.avail_moves_coor(pos):
+                    if next_pos not in added:
+                        added[next_pos] = 0
+                        new_my_q.add(next_pos)
+            my_queue = new_my_q
+
+            new_opp_q = set()
+            for pos in opp_queue:
+                for next_pos in self.avail_moves_coor(pos):
+                    if next_pos not in added:
+                        added[next_pos] = 1
+                        new_opp_q.add(next_pos)
+            opp_queue = new_opp_q
+        return added
+
+
+    def ultimate_flood_fill(self, pos, aps, added):
+        if self.is_articulation_point_2(pos):
+            return max(map(lambda x: self.smart_flood_fill(x, aps, added | {x}), self.avail_moves_coor(pos)))
+        return self.smart_flood_fill(pos, aps, added)
+
+    def smart_flood_fill(self, pos, aps, added):
+        """
+        Xét khoảng lớn nhất có thể fill với điều kiện khi qua điểm cắt 2 cạnh 
+        thì không quay đầu được nữa.
+        usage: smart_flood_fill(pos, aps, {pos})
+        """
+        count = 0
+        ap_adj = set()
+        wasnt_popped = {pos}
+        while wasnt_popped:
+            cur_pos = wasnt_popped.pop()
+            for next_pos in self.avail_moves_coor(cur_pos):
+                if next_pos not in added:
+                    if next_pos in aps:
+                        ap_adj.add(next_pos)
+                        if self.avail_moves_count(next_pos) == 3: # nếu có 3 cạnh vẫn có thể fill được
+                            count += 1
+                    else:
+                        wasnt_popped.add(next_pos)
+                        count += 1
+                    added.add(next_pos)
+        max_val = count
+        for ap in ap_adj:
+            if self.avail_moves_count(ap) == 3:
+                # cộng 1 cho ap rồi trừ 1 vì nếu có 3 cạnh mà trên đường lớn nhất thì không tính
+                max_val = max(max_val, count + self.smart_flood_fill(ap, aps, added.copy())) 
+            else:
+                # cộng 1 cho cái ap
+                max_val = max(max_val, count + 1 + self.smart_flood_fill(ap, aps, added.copy())) 
+        return max_val # nếu không có ap nào kề với component đang xét thì chỉ trả về count
 
     def flood_fill(self, cur_pos):
         """
@@ -303,17 +377,17 @@ class Matrix:
             if p == -1 and children > 1:
                 articulation_points.add(node)
 
-        visited = set()
-        tin = {}
-        low = {}
-        articulation_points = set()
-        avail = tuple(self.avail_moves_coor(self.pos))
-        if avail:
-            start = avail[0]
-            dfs(start)
-            # dfs(self.avail_moves_coor(self.pos).__next__())
-            return articulation_points
-        return set()  # board đã full nên không có articulation points
+        all_aps = set()
+        for coor in self.avail_moves_coor(self.pos):
+            visited = set()
+            tin = {}
+            low = {}
+            articulation_points = set()
+            dfs(coor)
+            all_aps |= articulation_points
+            if not self.is_articulation_point():
+                break
+        return all_aps
 
     def is_articulation_point(self):
         """
@@ -322,6 +396,23 @@ class Matrix:
         try:
             next_move = tuple(self.avail_moves_1_player())[0]
             return self.flood_fill_count(self.pos) - 1 != next_move.flood_fill_count(next_move.pos)
+        except:
+            return False
+
+    def is_articulation_point_2(self, pos):
+        """
+        :return: True nếu bot đang đứng trên articulation point và ngược lại
+        """
+        try:
+            temp = 'g'
+            temp, self.matrix[pos[0]*SIZE+pos[1]] = self.matrix[pos[0]*SIZE+pos[1]], temp
+            next_move = tuple(self.avail_moves_coor(pos))[0]
+            self.matrix[next_move[0]*SIZE + next_move[1]] = 'g'
+            next_move_fill = self.flood_fill_count(next_move)
+            self.matrix[next_move[0]*SIZE + next_move[1]] = '-'
+            result = self.flood_fill_count(pos) - 1 != next_move_fill
+            self.matrix[pos[0]*SIZE+pos[1]] = temp
+            return result
         except:
             return False
 
@@ -458,6 +549,27 @@ class Matrix:
                         point += 1 # khoảng cách bằng nhau, bot của người chơi sẽ tới trước (do là game turn-based)
         return point
 
+    def voronoi_point2(self):
+        point = 0
+        me = self.min_dist_dijktra(self.pos)
+        opp = self.min_dist_dijktra(self.opp_pos)
+        while True:
+            try:
+                pos = me.popitem()
+                my_dist = pos[1]
+                opp_dist = opp.pop(pos[0], 1000)
+            except:
+                try:
+                    pos = opp.popitem()
+                    opp_dist = pos[1]
+                    my_dist = me.pop(pos[0], 1000)
+                except:
+                    return point
+            if my_dist > opp_dist:
+                point -= 1
+            else:
+                point += 1
+
     def voronoi_edges(self):
         """
         lãnh thổ voronoi, tính theo cạnh
@@ -491,6 +603,32 @@ class Matrix:
         Chỉ sử dụng minimax khi đủ gần.
         """
         return self.min_dist_bfs_obstacle(self.pos, self.opp_pos) <= MINIMAX_DEPTH * 2
+
+    def voronoi_domain(self, my_pos, opp_pos):
+        my_domain = set()
+        opp_domain = set()
+        my_queue = {my_pos}
+        opp_queue = {opp_pos}
+        utility_edges = 0
+        while not(not my_queue and not opp_queue):
+            new_my_q = set()
+            for pos in my_queue:
+                for next_pos in self.avail_moves_coor(pos):
+                    if next_pos not in my_domain and next_pos not in opp_domain:
+                        my_domain.add(next_pos)
+                        new_my_q.add(next_pos)
+                        utility_edges += self.avail_moves_count(next_pos)
+            my_queue = new_my_q
+
+            new_opp_q = set()
+            for pos in opp_queue:
+                for next_pos in self.avail_moves_coor(pos):
+                    if next_pos not in my_domain and next_pos not in opp_domain:
+                        opp_domain.add(next_pos)
+                        new_opp_q.add(next_pos)
+                        utility_edges -= self.avail_moves_count(next_pos)
+            opp_queue = new_opp_q
+        return my_domain, opp_domain, utility_edges
 
 
 # Minimax algorithm: {{
@@ -593,7 +731,7 @@ def fill(state):
     #     next_state = max(state.avail_moves_1_player(), key=lambda x: x.flood_fill_count(x.pos))
     # else:  # nếu không ở articulation point, dùng hàm đánh giá trạng thái để xác định nước tiếp theo:
     #     next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 1))
-    next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth(x, 1))
+    next_state = max(state.avail_moves_1_player(), key=lambda x: filling_evaluate_with_depth_v6(x, 1))
     return next_state
 
 def fill_greedy(state):
@@ -628,8 +766,133 @@ def filling_evaluate(state):
     # công thức: số ô có thể tới - 2 * bậc của ô - 4 * số điểm cắt trong các ô có thể tới
     point = state.flood_fill_count(state.pos) + state.flood_fill_count_checkerboard(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
     if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
+        # min_val = min(map(lambda x: x.flood_fill_count(x.pos), state.avail_moves_1_player()))
+        # if min_val <= 2:
+        #     point -= 2 * min_val
+        # else:
+        #     point -= 20 * min_val
+        point -= 20 * min(map(lambda x: x.flood_fill_count(x.pos), state.avail_moves_1_player()))
+    return point
+
+def filling_evaluate_v2(state):
+    """
+    Đánh giá heuristic cho trạng thái đã separated, dùng để fill khoảng trống.
+    """
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return -10000  # nếu đi vào ngõ cụt, trả về giá trị tệ nhất
+    # if state.is_articulation_point(): # nếu ở AP thì xét điểm lớn nhất của các trạng thái con
+    #     return max(map(lambda x: filling_evaluate(x), state.avail_moves_1_player())) + 2
+    # công thức: số ô có thể tới - 2 * bậc của ô - 4 * số điểm cắt trong các ô có thể tới
+    point = filling_evaluate_v3(state) + state.flood_fill_count_checkerboard(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
+    if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
         point -= 500
     return point
+
+
+def filling_evaluate_v3(state):
+    if state.is_articulation_point():  
+        return max(map(lambda x: filling_evaluate_v3(x), state.avail_moves_1_player())) + state.avail_moves_count(state.pos) + 1
+    return state.flood_fill_count_no_aps(state.pos) + state.flood_fill_count_checkerboard(state.pos) - 2 * state.avail_moves_count(state.pos) - 4 * len(state.find_articulation_points())
+
+def filling_evaluate_v4(state):
+    if state.is_articulation_point():  
+        return max(map(lambda x: filling_evaluate_v3(x), state.avail_moves_1_player())) + 1.5
+    return state.flood_fill_count(state.pos) + state.flood_fill_count_checkerboard(state.pos) - 2 * state.avail_moves_count(state.pos) - 4 * len(state.find_articulation_points())
+
+def filling_evaluate_v5(state):
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return -10000
+    aps = state.find_articulation_points()
+    return 10 * state.ultimate_flood_fill(state.pos, aps, {state.pos}) + state.flood_fill_count_checkerboard(state.pos) - 2 * moves_count - 4 * len(aps)
+
+def filling_evaluate_with_depth_v5(state, depth):
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return -10000
+    if depth == FILL_DEPTH:
+        aps = state.find_articulation_points()
+        return 10 * state.ultimate_flood_fill(state.pos, aps, {state.pos}) + state.flood_fill_count_checkerboard(state.pos) - 2 * moves_count - 4 * len(aps)
+    max_val = -inf
+    for next_state in state.avail_moves_1_player():
+        max_val = max(max_val, filling_evaluate_with_depth_v5(next_state, depth + 1))
+    return filling_evaluate_v5(state) + max_val / (depth + 1)
+
+def filling_evaluate_v6(state):
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return -10000
+    aps = state.find_articulation_points()
+    return 11 * state.ultimate_flood_fill(state.pos, aps, {state.pos}) - 2 * moves_count - 4 * len(aps)
+
+def filling_evaluate_with_depth_v6(state, depth):
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return -10000
+    if depth == FILL_DEPTH:
+        aps = state.find_articulation_points()
+        return 11 * state.ultimate_flood_fill(state.pos, aps, {state.pos}) - 2 * moves_count - 4 * len(aps)
+    max_val = -inf
+    for next_state in state.avail_moves_1_player():
+        max_val = max(max_val, filling_evaluate_with_depth_v5(next_state, depth + 1))
+    return filling_evaluate_v5(state) + max_val / (depth + 1)
+
+def filling_evaluate_with_depth(state, depth):
+    """
+    Hàm đơn giản để áp dụng hàm filling_evaluate() bên trên với chiều sâu FILL_DEPTH.
+    """
+    moves_count = state.avail_moves_count(state.pos)
+    if moves_count == 0:
+        return -10000
+    if depth == FILL_DEPTH:
+        point = state.flood_fill_count(state.pos) + state.flood_fill_count_checkerboard(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
+        if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
+            # min_val = min(map(lambda x: x.flood_fill_count(x.pos), state.avail_moves_1_player()))
+            # if min_val <= 2:
+            #     point -= 2 * min_val
+            # else:
+            #     point -= 20 * min_val
+            point -= 20 * min(map(lambda x: x.flood_fill_count(x.pos), state.avail_moves_1_player()))
+        return point
+    max_val = -inf
+    for next_state in state.avail_moves_1_player():
+        max_val = max(max_val, filling_evaluate_with_depth(next_state, depth + 1))
+    return filling_evaluate(state) + max_val / (depth + 1)
+
+def flood_fill_v2(state):
+    if state.is_articulation_point():
+        return max(map(lambda x: flood_fill_v2(x), state.avail_moves_1_player())) + state.avail_moves_count(state.pos)
+    return state.flood_fill_count_no_aps(state.pos)
+
+def filling_evaluate_with_depth_v2(state, depth):
+    """
+    Hàm đơn giản để áp dụng hàm filling_evaluate() bên trên với chiều sâu FILL_DEPTH.
+    """
+    spaces_left = state.flood_fill_count_checkerboard(state.pos)
+    if depth == 10:
+        # point = flood_fill_v2(state) + spaces_left - 2 * state.avail_moves_count(state.pos) - 4 * len(state.find_articulation_points())
+        # return point
+        return filling_evaluate_v2(state)
+    max_val = 0
+    for next_state in state.avail_moves_1_player():
+        new_val = 1 + filling_evaluate_with_depth_v2(next_state, depth + 1)
+        if new_val > max_val:
+            max_val = new_val
+        if new_val == spaces_left:
+            break
+    return max_val
+
+def filling_evaluate_with_depth_v3(state, depth):
+    """
+    Hàm đơn giản để áp dụng hàm filling_evaluate() bên trên với chiều sâu FILL_DEPTH.
+    """ 
+    if depth == 6:
+        return filling_evaluate_v3(state)
+    max_val = -10000
+    for next_state in state.avail_moves_1_player():
+        max_val = max(max_val, filling_evaluate_with_depth_v3(next_state, depth + 1))
+    return max_val
 
 def filling_evaluate_minimax(state):
     """
@@ -642,40 +905,16 @@ def filling_evaluate_minimax(state):
     point = state.flood_fill_count(state.pos)
     return point
 
-
-def filling_evaluate_with_depth(state, depth):
-    """
-    Hàm đơn giản để áp dụng hàm filling_evaluate() bên trên với chiều sâu FILL_DEPTH.
-    """
-    moves_count = state.avail_moves_count(state.pos)
-    if moves_count == 0:
-        return -10000
-    if depth == FILL_DEPTH:
-        point = state.flood_fill_count(state.pos) + state.flood_fill_count_checkerboard(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
-        if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
-            point -= 500
-        return point
-    max_val = -inf
-    for next_state in state.avail_moves_1_player():
-        max_val = max(max_val, filling_evaluate_with_depth(next_state, depth + 1))
-    return filling_evaluate(state) + max_val / (depth + 1)
-
 def greedy_filling_evaluate(state, depth):
     """
     Trả về trạng thái con ở cuối cây với giá trị lớn nhất và đường đi từ trạng thái hiện tại tới đó.
     """
-    moves_count = state.avail_moves_count(state.pos)
-    if moves_count == 0:
-        return (-10000, [state])
-    if depth == FILL_DEPTH:
-        point = state.flood_fill_count(state.pos) - 2 * moves_count - 4 * len(state.find_articulation_points())
-        if state.is_articulation_point():  # trừ điểm khi bot đang ở articulation point
-            point -= 500
-        return (point, [state])
+    if state.avail_moves_count(state.pos) == 0 or depth == 7:
+        return (filling_evaluate_v3(state), [state])
     max_val = (-inf, None)
     for next_state in state.avail_moves_1_player():
         max_val = max(max_val, greedy_filling_evaluate(next_state, depth + 1), key = lambda x: x[0])
-    max_val[1].append(state) 
+    max_val[1].append(state)
     return max_val
 
 def return_move(new, old):
@@ -690,9 +929,54 @@ def return_move(new, old):
 # }}
 
 
+
+
+def dfs_run(state, start_time, max_time):
+    stack = [state.pos]
+    dfs_depth = [1] 
+    visit = [[False for _ in range(SIZE)] for __ in range(SIZE)]
+    visit[state.pos[0]][state.pos[1]] = True
+    max_dfs_depth = 1
+    while stack:
+        #neu qua thoi gian cho phep, tra luon ve do sau lon nhat da duyet toi
+        if time()-start_time > max_time:
+            return max(max_dfs_depth, dfs_depth[-1])
+
+        cur_pos = stack[-1]
+        nl = state.avail_moves_coor(cur_pos)
+        visit_all = True
+        for next_pos in nl:
+            if not visit[next_pos[0]][next_pos[1]]:
+                visit_all = False
+                visit[next_pos[0]][next_pos[1]] = True
+                stack.append(next_pos)
+                dfs_depth.append(dfs_depth[-1] + 1)
+        if visit_all:
+            stack.pop()
+            max_dfs_depth = max(max_dfs_depth, dfs_depth[-1])
+            dfs_depth.pop()
+    return max_dfs_depth
+
+
+def fill2(state):
+    MAX_TIME = 1 / state.avail_moves_count(state.pos)
+    if state.is_articulation_point():
+        # next_state = max(map(lambda x: dfs_run(x, time(), MAX_TIME) + state.flood_fill_count(state.pos) - \
+        #                                4 * len(state.find_articulation_points()), state.avail_moves()))
+        next_state = max(state.avail_moves_1_player(), key = lambda x: dfs_run(x, time(), MAX_TIME) + state.flood_fill_count(state.pos) - \
+                                       4 * len(state.find_articulation_points()))
+    else:
+        # next_state = max(map(lambda x: dfs_run(x, time(), MAX_TIME), state.avail_moves()))
+        next_state = max(state.avail_moves_1_player(), key=lambda x: dfs_run(x, time(), MAX_TIME))
+    return next_state
+
+
 # chạy thôi:
 cur = Matrix(matrix, turn, cur_pos, opp_pos)
 cur.display(0)
+
+# print(cur.ultimate_flood_fill(cur.pos, cur.find_articulation_points(), {cur.pos}))
+# print(cur.find_articulation_points())
 
 mode = input("\nChoose play mode (1 - AI vs Player, 2 - AI vs AI): ")
 if mode == '1': # AI vs Player
@@ -753,7 +1037,7 @@ elif mode == '2': # AI vs AI
             ### AI thinking...
             if cur.is_separated():
                 print("FILL MODE!")
-                cur = fill(cur)
+                cur = fill2(cur)
                 cur.turn = reverse[cur.turn]
                 cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
             else:
@@ -777,4 +1061,4 @@ elif mode == '2': # AI vs AI
 
             print("Time:", time()-start, "(s)")
             turn = reverse[turn]
-            cur.display(0.3)
+            cur.display(0)
