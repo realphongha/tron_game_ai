@@ -1,4 +1,12 @@
 # -*- coding: utf-8 -*-
+"""
+Bot Cuộc Chiến Lãnh Thổ.
+Nhóm 24:
+Hà Hải Phong - 20173299 
+Hà Hữu Linh - 20173230 
+Vũ Quang Đại - 20172993
+Phạm Quang Huy - 20173181
+"""
 import socketio
 import json
 import traceback
