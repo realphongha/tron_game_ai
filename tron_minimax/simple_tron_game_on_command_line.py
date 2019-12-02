@@ -38,7 +38,7 @@ reverse = {'r': 'g', 'g': 'r'}
 # constants:
 SIZE = 0 # kích thước bảng
 SQ_SIZE = 0 # SIZE * SIZE
-FILL_DEPTH = 6 # độ sâu chế độ space fill
+FILL_DEPTH = 4 # độ sâu chế độ space fill
 MINIMAX_DEPTH = 4 # độ sâu minimax
 
 # handles input:
@@ -399,6 +399,34 @@ class Matrix:
         except:
             return False
 
+    def is_connected(self, pos1, pos2):
+        """
+        pos1 != pos
+        """
+        added = {pos1}
+        wasnt_popped = {pos1}
+        while wasnt_popped:
+            pos = wasnt_popped.pop()
+            for next_pos in self.avail_moves_coor(pos):
+                if next_pos == pos2:
+                    return True
+                if next_pos not in added:
+                    added.add(next_pos)
+                    wasnt_popped.add(next_pos)
+        return False
+
+    def is_articulation_point_coor(self, pos):
+        temp = self.matrix[pos[0]*SIZE+pos[1]]
+        try:
+            self.matrix[pos[0]*SIZE+pos[1]] = 1 
+            adj_coors = tuple(self.avail_moves_coor(pos))
+            result = not self.is_connected(adj_coors[0], adj_coors[1])
+            self.matrix[pos[0]*SIZE+pos[1]] = temp
+            return result
+        except:
+            self.matrix[pos[0]*SIZE+pos[1]] = temp
+            return False
+
     def is_articulation_point_2(self, pos):
         """
         :return: True nếu bot đang đứng trên articulation point và ngược lại
@@ -421,6 +449,32 @@ class Matrix:
         2 người chơi đã ở trạng thái phân tách.
         """
         return len(self.flood_fill(self.pos) & self.flood_fill(self.opp_pos)) == 0
+
+    def is_separated_2(self):
+        added = set()
+        wasnt_popped = {self.pos}
+        while wasnt_popped:
+            pos = wasnt_popped.pop()
+            for next_pos in self.avail_moves_coor(pos):
+                if abs(next_pos[0] - self.opp_pos[0]) + abs(next_pos[1] - self.opp_pos[1]) == 1:
+                    return False
+                if next_pos not in added:
+                    added.add(next_pos)
+                    wasnt_popped.add(next_pos)
+        return True
+
+    def is_separated_3(self):
+        added = set()
+        wasnt_popped = deque([self.pos])
+        while wasnt_popped:
+            pos = wasnt_popped.popleft()
+            for next_pos in self.avail_moves_coor(pos):
+                if abs(next_pos[0] - self.opp_pos[0]) + abs(next_pos[1] - self.opp_pos[1]) == 1:
+                    return False
+                if next_pos not in added:
+                    added.add(next_pos)
+                    wasnt_popped.append(next_pos)
+        return True
 
     def manhattan_dist(self, pos1, pos2):
         """
@@ -975,8 +1029,29 @@ def fill2(state):
 cur = Matrix(matrix, turn, cur_pos, opp_pos)
 cur.display(0)
 
-# print(cur.ultimate_flood_fill(cur.pos, cur.find_articulation_points(), {cur.pos}))
-# print(cur.find_articulation_points())
+# start = time()
+# for i in range(1000):
+#     cur.is_articulation_point()
+# print(time()-start)
+# start = time()
+# for i in range(1000):
+#     cur.is_articulation_point_2(cur.pos)
+# print(time()-start)
+# start = time()
+# for i in range(1000):
+#     cur.is_articulation_point_coor(cur.pos)
+# print(time()-start)
+
+# start = time()
+# for i in range(5000):
+#     cur.is_separated_3()
+# print(time()-start)
+# start = time()
+# for i in range(5000):
+#     cur.is_separated_2()
+# print(time()-start)
+
+print (cur.is_separated_3())
 
 mode = input("\nChoose play mode (1 - AI vs Player, 2 - AI vs AI): ")
 if mode == '1': # AI vs Player
@@ -1037,7 +1112,7 @@ elif mode == '2': # AI vs AI
             ### AI thinking...
             if cur.is_separated():
                 print("FILL MODE!")
-                cur = fill2(cur)
+                cur = fill(cur)
                 cur.turn = reverse[cur.turn]
                 cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
             else:
