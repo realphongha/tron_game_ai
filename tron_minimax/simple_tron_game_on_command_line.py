@@ -301,14 +301,37 @@ class Matrix:
 
     def ultimate_flood_fill(self, pos, aps, added):
         if self.is_articulation_point_2(pos):
-            return max(map(lambda x: self.smart_flood_fill(x, aps, added | {x}), self.avail_moves_coor(pos)))
-        return self.smart_flood_fill(pos, aps, added)
+            return 1 + max(map(lambda x: self.smart_flood_fill(x, aps, added | {x}), self.avail_moves_coor(pos)))
+        count = 0
+        ap_adj = set()
+        wasnt_popped = {pos}
+        while wasnt_popped:
+            cur_pos = wasnt_popped.pop()
+            for next_pos in self.avail_moves_coor(cur_pos):
+                if next_pos not in added:
+                    if next_pos in aps:
+                        ap_adj.add(next_pos)
+                        if self.avail_moves_count(next_pos) == 3: # nếu có 3 cạnh vẫn có thể fill được
+                            count += 1
+                    else:
+                        wasnt_popped.add(next_pos)
+                        # điểm ngõ cụt sẽ không được tính (trừ điểm đầu) (điểm cuối không xét tới)
+                        if self.avail_moves_count(next_pos) > 1 or \
+                        (abs(pos[0] - next_pos[0]) + abs(pos[1] - next_pos[1]) == 1): 
+                            count += 1
+                    added.add(next_pos)
+        max_val = count
+        for ap in ap_adj:
+            if self.avail_moves_count(ap) == 3:
+                max_val = max(max_val, count + self.smart_flood_fill(ap, aps, added.copy())) 
+            else:
+                max_val = max(max_val, count + 1 + self.smart_flood_fill(ap, aps, added.copy())) 
+        return max_val
 
     def smart_flood_fill(self, pos, aps, added):
         """
         Xét khoảng lớn nhất có thể fill với điều kiện khi qua điểm cắt 2 cạnh 
         thì không quay đầu được nữa.
-        usage: smart_flood_fill(pos, aps, {pos})
         """
         count = 0
         ap_adj = set()
@@ -323,9 +346,11 @@ class Matrix:
                             count += 1
                     else:
                         wasnt_popped.add(next_pos)
-                        count += 1
+                        if self.avail_moves_count(next_pos) > 1: 
+                            count += 1
                     added.add(next_pos)
         max_val = count
+        print(pos, count)
         for ap in ap_adj:
             if self.avail_moves_count(ap) == 3:
                 # cộng 1 cho ap rồi trừ 1 vì nếu có 3 cạnh mà trên đường lớn nhất thì không tính
@@ -445,25 +470,6 @@ class Matrix:
             return False
 
     def is_separated(self):
-        """
-        2 người chơi đã ở trạng thái phân tách.
-        """
-        return len(self.flood_fill(self.pos) & self.flood_fill(self.opp_pos)) == 0
-
-    def is_separated_2(self):
-        added = set()
-        wasnt_popped = {self.pos}
-        while wasnt_popped:
-            pos = wasnt_popped.pop()
-            for next_pos in self.avail_moves_coor(pos):
-                if abs(next_pos[0] - self.opp_pos[0]) + abs(next_pos[1] - self.opp_pos[1]) == 1:
-                    return False
-                if next_pos not in added:
-                    added.add(next_pos)
-                    wasnt_popped.add(next_pos)
-        return True
-
-    def is_separated_3(self):
         added = set()
         wasnt_popped = deque([self.pos])
         while wasnt_popped:
@@ -982,9 +988,6 @@ def return_move(new, old):
         return "LEFT"
 # }}
 
-
-
-
 def dfs_run(state, start_time, max_time):
     stack = [state.pos]
     dfs_depth = [1] 
@@ -1024,10 +1027,90 @@ def fill2(state):
         next_state = max(state.avail_moves_1_player(), key=lambda x: dfs_run(x, time(), MAX_TIME))
     return next_state
 
+def search_path2(state, depth, start_time):
+    if time() - start_time > TIME_LIMIT:
+        raise TimeOut()
+    if depth == 0:
+        return number_of_edges(state)
+    max_val = -1000
+    for move in state.avail_moves_1_player():
+        move_1_player(move)
+        temp = search_path(state, depth - 1)
+        if max_val < temp:
+            max_val = temp
+        move_1_player(-move)
+    if max_val < -990:
+        return -depth
+    return max_val
+
+def fill32(state):
+    return_move = 1
+    max_val = -1000
+    for move in state.avail_moves_1_player():
+        move_1_player(move)
+        temp = search_path(state, 10)
+        if max_val < temp:
+            max_val = temp
+            return_move = move
+        move_1_player(-move)
+    return return_move
+
+class TimeOut(Exception):
+    pass
+
+TIME_LIMIT = 0.9
+def number_of_edges(state, start_time):
+    if time() - start_time > TIME_LIMIT:
+        raise TimeOut()
+    added = {state.pos}
+    temp = set()
+    max_val = 0
+    for pos in state.avail_moves_coor(state.pos):
+        if pos not in temp:
+            count = state.avail_moves_count(pos)
+            added.add(pos)
+            temp.add(pos)
+            while added:
+                cur_pos = added.pop()
+                for next_pos in state.avail_moves_coor(cur_pos):
+                    if next_pos not in temp:
+                        count += state.avail_moves_count(next_pos)
+                        added.add(next_pos)
+                        temp.add(next_pos)
+            max_val = max(max_val, count)
+    return max_val
+
+def search_path(state, depth, start_time):
+    if time() - start_time > TIME_LIMIT:
+        raise TimeOut()
+    if depth == 0:
+        return number_of_edges(state, start_time)
+    max_val = -1000
+    for next_state in state.avail_moves_1_player():
+        temp = search_path(next_state, depth - 1, start_time)
+        if max_val < temp:
+            max_val = temp
+    if max_val < -990:
+        return -depth
+    return max_val
+
+def fill3(state, start_depth, max_depth, start_time):
+    return_state = None
+    for depth in range(start_depth, max_depth + 1):
+        try:
+            return_state = max(state.avail_moves_1_player(), key = lambda x: search_path(x, depth, start_time))
+        except:
+            print("DEPTH", depth)
+            return return_state
+    print("DEPTH", depth)
+    return return_state
+
 
 # chạy thôi:
 cur = Matrix(matrix, turn, cur_pos, opp_pos)
 cur.display(0)
+
+print(cur.ultimate_flood_fill(cur.pos, cur.find_articulation_points(), {cur.pos}))
 
 # start = time()
 # for i in range(1000):
@@ -1050,8 +1133,6 @@ cur.display(0)
 # for i in range(5000):
 #     cur.is_separated_2()
 # print(time()-start)
-
-print (cur.is_separated_3())
 
 mode = input("\nChoose play mode (1 - AI vs Player, 2 - AI vs AI): ")
 if mode == '1': # AI vs Player
@@ -1103,6 +1184,7 @@ if mode == '1': # AI vs Player
 elif mode == '2': # AI vs AI
     while True:
         if cur.avail_moves_count(cur.pos) == 0:
+            print(cur.pos)
             print("\nEnd game!")
             break
         else:
@@ -1112,14 +1194,15 @@ elif mode == '2': # AI vs AI
             ### AI thinking...
             if cur.is_separated():
                 print("FILL MODE!")
-                cur = fill(cur)
+                cur = fill3(cur, 1, 100, time())
+                # cur = fill(cur)
                 cur.turn = reverse[cur.turn]
                 cur.pos, cur.opp_pos = cur.opp_pos, cur.pos
             else:
                 # dùng minimax luôn từ đầu:
 
                 print("MINIMAX MODE!")
-                cur = minimax(cur, 1, -inf, inf)
+                cur = minimax(cur, 3, -inf, inf)
 
                 # hai bot gần nhau mới dùng:
 
