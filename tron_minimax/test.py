@@ -21,7 +21,7 @@ FILL_DEPTH = 4 # max depth for spacefill
 START_DEPTH_MINIMAX = 3 # start depth for IDS minimax
 START_DEPTH_FILL = 4 # start depth for IDS spacefill
 MAX_DEPTH_MINIMAX = 100 # max depth for IDS minimax
-MAX_DEPTH_FILL = 15 # max depth for IDS spacefill
+MAX_DEPTH_FILL = 100 # max depth for IDS spacefill
 TIME_LIMIT_MINIMAX = 0.8 # time limit for one turn
 TIME_LIMIT_FILL = 0.8 # time limit for one turn
 SIZE = 15
@@ -374,6 +374,15 @@ def minimax_ids(state, start_depth, max_depth, alpha, beta, start_time):
     print("DEPTH", depth)
     return return_move
 
+def order_nodes(state, dir):
+    """
+    hàm sắp xếp nút lá tối ưu cho alpha-beta
+    """
+    state.move(dir)
+    me, opp = state.voronoi_domain(state.pos, state.opp_pos)
+    state.move_back(dir)
+    return len(me) - len(opp)
+
 def minimax(state, depth, alpha, beta, start_time):
     if time() - start_time > TIME_LIMIT_MINIMAX: # sắp hết giờ!!!
         raise TimeOut()
@@ -405,7 +414,7 @@ def max_value(state, depth, alpha, beta, start_time):
         if alpha >= beta:
             return max_val
     if max_val == -1000:
-        return -500 + depth
+        return -500 - depth
     return max_val
 
 
@@ -425,7 +434,7 @@ def min_value(state, depth, alpha, beta, start_time):
         if alpha >= beta:
             return min_val
     if min_val == 1000:
-        return 500 - depth
+        return 500 + depth
     return min_val
 
 def fill(state):
@@ -594,5 +603,17 @@ def change_Turn(data):
         print "You lose!!!"
     if this_turn == team:
         print("TIME: ",time() - begin)
+
+# SIZE = int(raw_input())
+# turn = int(raw_input().rstrip())
+# line2 = tuple(map(int, raw_input().rstrip().split()))
+# cur_pos = (line2[0], line2[1])
+# opp_pos = (line2[2], line2[3])
+# matrix = []
+# for i in range(SIZE):
+#     matrix += list(map(int, raw_input().rstrip()))
+# cur = Matrix(matrix, turn, cur_pos, opp_pos)
+# # print(cur.matrix, cur.turn, cur.pos, cur.opp_pos)
+# # print(cur.ultimate_flood_fill(cur.opp_pos, cur.find_articulation_points(cur.opp_pos), {cur.opp_pos}))
 
 sio.connect('http://localhost:3000', headers={'team': team})
