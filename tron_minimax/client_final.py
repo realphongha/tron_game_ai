@@ -1,12 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Bot Cuộc Chiến Lãnh Thổ.
-Nhóm 24:
-Hà Hải Phong - 20173299 
-Hà Hữu Linh - 20173230 
-Vũ Quang Đại - 20172993
-Phạm Quang Huy - 20173181
-"""
 import socketio
 import json
 import traceback
@@ -17,13 +8,14 @@ from time import time
 reverse = {'X': 'O', 'O': 'X', 1: 2, 2: 1}
 turn_sym = {'X': 1, 'O': 2}
 
-FILL_DEPTH = 4 # max depth for spacefill
-START_DEPTH_MINIMAX = 3 # start depth for IDS minimax
-START_DEPTH_FILL = 4 # start depth for IDS spacefill
-MAX_DEPTH_MINIMAX = 100 # max depth for IDS minimax
-MAX_DEPTH_FILL = 100 # max depth for IDS spacefill
-TIME_LIMIT_MINIMAX = 0.8 # time limit for one turn
-TIME_LIMIT_FILL = 0.8 # time limit for one turn
+HACKER = False
+FILL_DEPTH = 4
+START_DEPTH_MINIMAX = 3
+START_DEPTH_FILL = 4
+MAX_DEPTH_MINIMAX = 100
+MAX_DEPTH_FILL = 15
+TIME_LIMIT_MINIMAX = 0.8
+TIME_LIMIT_FILL = 0.8
 SIZE = 15
 team = ''
 while True:
@@ -32,17 +24,17 @@ while True:
     if team == 'O' or team == 'X':
         break
 turn = turn_sym[team]
-state = None # init state
+state = None
 
 class Matrix:
     def __init__(self, matrix, turn, pos, opp_pos):
-        self.matrix = np.array(matrix) # bàn cờ
-        self.turn = turn # ký hiệu turn hiện tại
-        self.pos = pos # vị trí người chơi hiện tại
-        self.opp_pos = opp_pos # vị trí đối thủ
+        self.matrix = np.array(matrix)
+        self.turn = turn
+        self.pos = pos
+        self.opp_pos = opp_pos
 
     def avail_moves(self):
-        # trả về các nước đi có thể
+        
         if self.pos[0] + 1 < SIZE:
             if self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] == 0:
                 yield 1 # down
@@ -102,7 +94,7 @@ class Matrix:
             self.pos, self.opp_pos = self.opp_pos, self.pos
 
     def move_1_player(self, dir):
-        # di chuyển nhưng không đổi turn (để fill)
+        
         if dir == 1:
             self.matrix[(self.pos[0] + 1) * SIZE + self.pos[1]] = self.turn
             self.pos = (self.pos[0] + 1, self.pos[1])
@@ -117,7 +109,7 @@ class Matrix:
             self.pos = (self.pos[0], self.pos[1] - 1)
 
     def move_back_1_player(self, dir):
-        # quay ngược lại move_1_player()
+        
         if dir == 1:
             self.matrix[self.pos[0] * SIZE + self.pos[1]] = 0
             self.pos = (self.pos[0] - 1, self.pos[1])
@@ -132,7 +124,7 @@ class Matrix:
             self.pos = (self.pos[0], self.pos[1] + 1)
 
     def avail_moves_coor(self, pos):
-        # trả về tọa độ các điểm có thể tới từ pos
+        
         if pos[0] + 1 < SIZE:
             if self.matrix[(pos[0] + 1) * SIZE + pos[1]] == 0:
                 yield (pos[0] + 1, pos[1])
@@ -147,7 +139,7 @@ class Matrix:
                 yield (pos[0], pos[1] - 1)
 
     def avail_moves_count(self, pos):
-        # trả về số các nước đi có thể từ pos (số bậc của pos)
+        
         count = 0
         if pos[0] + 1 < SIZE:
             if self.matrix[(pos[0] + 1) * SIZE + pos[1]] == 0:
@@ -164,7 +156,7 @@ class Matrix:
         return count
 
     def find_articulation_points(self, pos):
-        # trả về số điểm cắt trong khu vực liên thông với pos
+        
         self.time = 0
 
         def dfs(node, p=-1):
@@ -199,8 +191,7 @@ class Matrix:
         return all_aps
 
     def is_connected(self, pos1, pos2):
-        # pos1 với pos2 có liên thông không? (pos1 == pos2 sẽ return False)
-        # (pos2 là vật cản sẽ return False)
+        
         added = {pos1}
         wasnt_popped = deque([pos1])
         while wasnt_popped:
@@ -214,20 +205,28 @@ class Matrix:
         return False
 
     def is_articulation_point_coor(self, pos):
-        # pos có là điểm cắt không?
+        
         temp = self.matrix[pos[0]*SIZE+pos[1]]
-        try:
-            self.matrix[pos[0]*SIZE+pos[1]] = 1
-            adj_coors = tuple(self.avail_moves_coor(pos))
-            result = not self.is_connected(adj_coors[0], adj_coors[1])
-            self.matrix[pos[0]*SIZE+pos[1]] = temp
-            return result
-        except:
+        self.matrix[pos[0]*SIZE+pos[1]] = 1
+        adj_coors = tuple(self.avail_moves_coor(pos))
+        n = len(adj_coors)
+        if n < 2:
             self.matrix[pos[0]*SIZE+pos[1]] = temp
             return False
+        if n == 2:
+            result = not self.is_connected(adj_coors[0], adj_coors[1])
+        elif n == 3:
+            result = (not self.is_connected(adj_coors[0], adj_coors[1])) or \
+            (not self.is_connected(adj_coors[0], adj_coors[2]))
+        elif n == 4:
+            result = (not self.is_connected(adj_coors[0], adj_coors[1])) or \
+            (not self.is_connected(adj_coors[0], adj_coors[2])) or \
+            (not self.is_connected(adj_coors[0], adj_coors[3])) 
+        self.matrix[pos[0]*SIZE+pos[1]] = temp
+        return result
 
     def is_separated(self):
-        # trạng thái hiện tại đã phân tách chưa?
+        
         added = set()
         wasnt_popped = deque([self.pos])
         while wasnt_popped:
@@ -241,28 +240,25 @@ class Matrix:
         return True
 
     def ultimate_flood_fill(self, pos, aps, added):
-        """
-        Bổ sung cho smart_flood_fill() ở dưới bằng cách xét giá trị pos truyền vào đầu tiên.
-        """
         if self.is_articulation_point_coor(pos):
             return 1 + max(map(lambda x: self.smart_flood_fill(x, aps, added | {x}), self.avail_moves_coor(pos)))
         count = 0
         ap_adj = set()
-        wasnt_popped = {pos}
+        wasnt_popped = deque([pos])
         while wasnt_popped:
-            cur_pos = wasnt_popped.pop()
+            cur_pos = wasnt_popped.popleft()
             for next_pos in self.avail_moves_coor(cur_pos):
                 if next_pos not in added:
                     if next_pos in aps:
                         ap_adj.add(next_pos)
-                        # nếu có 3 cạnh vẫn có thể fill được
+                        
                         if self.avail_moves_count(next_pos) == 3: 
                             count += 1
                     else:
-                        wasnt_popped.add(next_pos)
-                        # điểm ngõ cụt sẽ không được tính (trừ điểm đầu) (điểm cuối không xét tới)
+                        wasnt_popped.append(next_pos)
+                        
                         if self.avail_moves_count(next_pos) > 1 or \
-                        (abs(pos[0] - next_pos[0]) + abs(pos[1] - next_pos[1]) == 1): 
+                        abs(next_pos[0] - self.opp_pos[0]) + abs(next_pos[1] - self.opp_pos[1]) == 1:
                             count += 1
                     added.add(next_pos)
         max_val = count
@@ -274,44 +270,38 @@ class Matrix:
         return max_val
         
     def smart_flood_fill(self, pos, aps, added):
-        """
-        Xét khoảng lớn nhất có thể fill với điều kiện khi qua điểm cắt bậc 2 
-        thì không quay đầu được nữa.
-        """
         count = 0
         ap_adj = set()
-        wasnt_popped = {pos}
+        wasnt_popped = deque([pos])
         while wasnt_popped:
-            cur_pos = wasnt_popped.pop()
+            cur_pos = wasnt_popped.popleft()
             for next_pos in self.avail_moves_coor(cur_pos):
                 if next_pos not in added:
                     if next_pos in aps:
                         ap_adj.add(next_pos)
-                        if self.avail_moves_count(next_pos) == 3: # nếu có 3 cạnh vẫn có thể fill được
+                        if self.avail_moves_count(next_pos) == 3:
                             count += 1
                     else:
-                        wasnt_popped.add(next_pos)
+                        wasnt_popped.append(next_pos)
                         if self.avail_moves_count(next_pos) > 1: 
                             count += 1
                     added.add(next_pos)
         max_val = count
         for ap in ap_adj:
             if self.avail_moves_count(ap) == 3:
-                # cộng 1 cho ap rồi trừ 1 vì nếu có 3 cạnh mà trên đường lớn nhất thì không tính
-                max_val = max(max_val, count + self.smart_flood_fill(ap, aps, added.copy())) 
+                
+                max_val = max(max_val, count + self.smart_flood_fill(ap, aps, added.copy()))
             else:
-                # cộng 1 cho cái ap
-                max_val = max(max_val, count + 1 + self.smart_flood_fill(ap, aps, added.copy())) 
-        return max_val # nếu không có ap nào kề với component đang xét thì chỉ trả về count
+                
+                max_val = max(max_val, count + 1 + self.smart_flood_fill(ap, aps, added.copy()))
+        return max_val
 
     def voronoi_domain(self, my_pos, opp_pos):
-        # trả về lãnh thổ voronoi của my_pos và opp_pos bằng phương pháp
-        # lần lượt mỗi bên đi 1 bước cho tới khi hết ô trống (my_pos đi trước). 
         my_domain = set()
         opp_domain = set()
         my_queue = {my_pos}
         opp_queue = {opp_pos}
-        while not(not my_queue and not opp_queue): # ( ͡° ͜ʖ ͡°) 
+        while len(my_queue) or len(opp_queue):
             new_my_q = set()
             for pos in my_queue:
                 for next_pos in self.avail_moves_coor(pos):
@@ -330,61 +320,46 @@ class Matrix:
         return my_domain, opp_domain
 
     def not_separated_heuristic(self):
-        # heuristic trạng thái chưa phân tách
         me, opp = self.voronoi_domain(self.pos, self.opp_pos)
-        # fill tạm hết lãnh thổ của đối phương để tính điểm của mình
         for pos in opp:
             self.matrix[pos[0] * SIZE + pos[1]] = 2
         my_space = self.ultimate_flood_fill(self.pos, self.find_articulation_points(self.pos), {self.pos})
-        # rollback, bỏ fill đi:
         for pos in opp:
             self.matrix[pos[0] * SIZE + pos[1]] = 0
-        # tương tự, fill hết lãnh thổ của mình
+        
         for pos in me:
             self.matrix[pos[0] * SIZE + pos[1]] = 1
         opp_space = self.ultimate_flood_fill(self.opp_pos, self.find_articulation_points(self.opp_pos), {self.opp_pos})
         for pos in me:
             self.matrix[pos[0] * SIZE + pos[1]] = 0
 
-        return my_space * 0.999 - opp_space
+        return my_space - opp_space
 
     def separated_heuristic(self):
-        # heuristic trạng thái đã phân tách
+        
         my_space = self.ultimate_flood_fill(self.pos, self.find_articulation_points(self.pos), {self.pos})
         opp_space = self.ultimate_flood_fill(self.opp_pos, self.find_articulation_points(self.opp_pos), {self.opp_pos})
-        return my_space * 0.999 - opp_space
+        return my_space - opp_space + 0.5
 
 class TimeOut(Exception):
-    # exception khi sắp hết thời gian
     pass
 
 def minimax_ids(state, start_depth, max_depth, alpha, beta, start_time):
-    # duyệt minimax sâu dần, độ sâu khởi đầu là start_depth, trả về 
-    # giá trị return_state hiện tại khi sắp hết thời gian
     new_state = Matrix(state.matrix, state.turn, state.pos, state.opp_pos)
     return_move = 1
     for depth in xrange(start_depth, max_depth + 1):
         try:
             return_move = minimax(new_state, depth, alpha, beta, start_time)
         except TimeOut:
-            print("DEPTH", depth)
+            # print("DEPTH", depth)
             return return_move
         except:
             traceback.print_exc()
-    print("DEPTH", depth)
+    # print("DEPTH", depth)
     return return_move
 
-def order_nodes(state, dir):
-    """
-    hàm sắp xếp nút lá tối ưu cho alpha-beta
-    """
-    state.move(dir)
-    me, opp = state.voronoi_domain(state.pos, state.opp_pos)
-    state.move_back(dir)
-    return len(me) - len(opp)
-
 def minimax(state, depth, alpha, beta, start_time):
-    if time() - start_time > TIME_LIMIT_MINIMAX: # sắp hết giờ!!!
+    if time() - start_time > TIME_LIMIT_MINIMAX:
         raise TimeOut()
     max_val = -1000
     return_move = 1
@@ -414,7 +389,7 @@ def max_value(state, depth, alpha, beta, start_time):
         if alpha >= beta:
             return max_val
     if max_val == -1000:
-        return -500 - depth
+        return depth - 500
     return max_val
 
 
@@ -434,9 +409,9 @@ def min_value(state, depth, alpha, beta, start_time):
         if alpha >= beta:
             return min_val
     if min_val == 1000:
-        return 500 + depth
+        return 500 - depth
     return min_val
-
+"""
 def fill(state):
     max_val = -100000
     return_move = 1
@@ -469,24 +444,25 @@ def filling_evaluate_with_depth(state, depth):
         max_val = max(max_val, filling_evaluate_with_depth(state, depth + 1))
         state.move_back_1_player(next_move)
     return filling_evaluate(state) + max_val / (depth + 1)
+"""
 
 def number_of_edges(state, start_time):
     if time() - start_time > TIME_LIMIT_FILL:
         raise TimeOut()
-    added = {state.pos}
+    added = deque([state.pos])
     temp = set()
     max_val = 0
     for pos in state.avail_moves_coor(state.pos):
         if pos not in temp:
             count = state.avail_moves_count(pos)
-            added.add(pos)
+            added.append(pos)
             temp.add(pos)
             while added:
-                cur_pos = added.pop()
+                cur_pos = added.popleft()
                 for next_pos in state.avail_moves_coor(cur_pos):
                     if next_pos not in temp:
                         count += state.avail_moves_count(next_pos)
-                        added.add(next_pos)
+                        added.append(next_pos)
                         temp.add(next_pos)
             max_val = max(max_val, count)
     return max_val
@@ -505,7 +481,7 @@ def search_path(state, depth, start_time):
         if max_val < -990:
             return -depth
         return max_val
-    return number_of_edges(state, start_time) # depth == 0
+    return number_of_edges(state, start_time)
 
 def find_path(state, start_time, depth):
     if time() - start_time > TIME_LIMIT_FILL:
@@ -522,20 +498,16 @@ def find_path(state, start_time, depth):
     return return_move
 
 def fill_v2(state, start_depth, max_depth, start_time):
-    """
-    hàm spacefill của thầy, nhưng dùng IDS
-    """
     return_move = 1
     new_state = Matrix(state.matrix, state.turn, state.pos, state.opp_pos)
     for depth in xrange(start_depth, max_depth + 1):
         try:
             return_move = find_path(new_state, start_time, depth)
         except TimeOut:
-            print("DEPTH", depth)
             return return_move
         except:
             traceback.print_exc()
-    print("DEPTH", depth)
+    
     return return_move
 
 sio = socketio.Client()
@@ -545,7 +517,7 @@ def connect():
     send_infor()
 @sio.event
 def send_infor():
-    infor = json.dumps({"name": "Nhóm 24", "team": team, "members":[{"name": "Hà Hải Phong", "mssv": 20173299}, {"name": "Hà Hữu Linh", "mssv": 20173230}, {"name":"Vũ Quang Đại", "mssv":20172993}, {"name":"Phạm Quang Huy", "mssv":20173181}]})
+    infor = json.dumps({"name": "Alpha24", "team": team, "members":[{"name": "Ha Hai Phong", "mssv": 20173299}, {"name": "Ha Huu Linh", "mssv": 20173230}, {"name":"Vu Quang Dai", "mssv":20172993}, {"name":"Pham Quang Huy", "mssv":20173181}]})
     sio.emit('Infor', infor)
 @sio.event
 def send_message(point):
@@ -557,6 +529,8 @@ def disconnect():
 @sio.on('new_Map')
 def new_Map(data):
     global state
+    global HACKER
+    HACKER = False
     global turn_sym
     global team
     global SIZE
@@ -579,8 +553,9 @@ def time_Out(data):
 def change_Turn(data):
     begin = time()
     global state
-    global turn_sym
+    global HACKER
     global team
+    global turn_sym
     this_turn = data["turn"]
     result = data["result"]
     if result == "C":
@@ -589,7 +564,10 @@ def change_Turn(data):
                 rivalpoint = data["point"]
                 state.matrix[rivalpoint["x"]*SIZE + rivalpoint["y"]] = turn_sym[rivalpoint["type"]]
                 state.opp_pos = (rivalpoint["x"], rivalpoint["y"])
-                if state.is_separated():
+                if HACKER:
+                    state.move_1_player(fill_v2(state, START_DEPTH_FILL, MAX_DEPTH_FILL, begin))
+                elif state.is_separated():
+                    HACKER = True
                     # state.move_1_player(fill(state))
                     state.move_1_player(fill_v2(state, START_DEPTH_FILL, MAX_DEPTH_FILL, begin))
                 else:
@@ -603,17 +581,4 @@ def change_Turn(data):
         print "You lose!!!"
     if this_turn == team:
         print("TIME: ",time() - begin)
-
-# SIZE = int(raw_input())
-# turn = int(raw_input().rstrip())
-# line2 = tuple(map(int, raw_input().rstrip().split()))
-# cur_pos = (line2[0], line2[1])
-# opp_pos = (line2[2], line2[3])
-# matrix = []
-# for i in range(SIZE):
-#     matrix += list(map(int, raw_input().rstrip()))
-# cur = Matrix(matrix, turn, cur_pos, opp_pos)
-# # print(cur.matrix, cur.turn, cur.pos, cur.opp_pos)
-# # print(cur.ultimate_flood_fill(cur.opp_pos, cur.find_articulation_points(cur.opp_pos), {cur.opp_pos}))
-
 sio.connect('http://localhost:3000', headers={'team': team})
